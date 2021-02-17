@@ -6,6 +6,15 @@ use solana_program::{
 };
 use std::str::from_utf8;
 
+use crate::instruction::{self, ProgInstruction};
+
+fn process_register_call(sender: &Pubkey) -> ProgramResult {
+    Ok(())
+}
+
+fn process_enact_basket(sender: &Pubkey) -> ProgramResult {
+    Ok(())
+}
 /// Instruction processor
 pub fn process_instruction(
     _program_id: &Pubkey,
@@ -13,25 +22,23 @@ pub fn process_instruction(
     input: &[u8],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    let mut missing_required_signature = false;
-    for account_info in account_info_iter {
-        if let Some(address) = account_info.signer_key() {
-            msg!("Signed by {:?}", address);
-        } else {
-            missing_required_signature = true;
+    let account_info = account_info_iter
+        .next()
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if let Some(address) = account_info.signer_key() {
+        if address != account_info.owner {
+            return Err(ProgramError::MissingRequiredSignature);
         }
-    }
-    if missing_required_signature {
+    } else {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let memo = from_utf8(input).map_err(|err| {
-        msg!("Invalid UTF-8, from byte {}", err.valid_up_to());
-        ProgramError::InvalidInstructionData
-    })?;
-    msg!("Memo (len {}): {:?}", memo.len(), memo);
+    let instruction = ProgInstruction::unpack(input)?;
 
-    Ok(())
+    match instruction {
+        ProgInstruction::RegisterCall { from, to } => process_register_call(account_info.owner),
+        ProgInstruction::EnactBasket { basket_name } => process_enact_basket(account_info.owner),
+    }
 }
 
 #[cfg(test)]

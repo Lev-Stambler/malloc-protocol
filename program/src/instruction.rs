@@ -1,39 +1,69 @@
 //! Instruction types
 
 // use crate::error::TokenError;
-use wasm_bindgen::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::to_vec;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
+    msg,
     program_error::ProgramError,
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
 };
-use std::convert::TryInto;
 use std::mem::size_of;
+use std::{collections::HashMap, convert::TryInto};
+use wasm_bindgen::prelude::*;
 
 /// Minimum number of multisignature signers (min N)
 pub const MIN_SIGNERS: usize = 1;
 /// Maximum number of multisignature signers (max N)
 pub const MAX_SIGNERS: usize = 11;
 
+struct Basket {
+    /// The calls that the basket makes
+    calls: Vec<String>,
+    /// the proportional split of every element in calls such that all elems
+    /// sum to 1_000
+    splits: Vec<i32>,
+    /// the basket's creator
+    creator: Pubkey,
+    /// the input SPL type address
+    input: Pubkey,
+}
+/// The program state
+pub struct ProgState {
+    /// A map of all names to pubkeys for the calls
+    /// TODO: make more efficient than std HashMap
+    wrapped_call_addrs: HashMap<String, Pubkey>,
+    /// All the baskets with the basket name as a key
+    baskets: HashMap<String, Basket>,
+    /// All the supported outputs that pipe into the wrapped calls
+    supported_outputs: HashMap<String, Pubkey>,
+}
+
 /// Instructions supported by the token program.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ProgInstruction {
-    Instruct1 { data: i32 },
+    RegisterCall { from: String, to: Pubkey },
+    EnactBasket { basket_name: String },
 }
 
 impl ProgInstruction {
-    /// Unpacks a byte buffer into a [ProgInstruction](enum.ProgInstruction.html).
+    // TODO: make use of something more efficient than JSON
+    /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        return Ok(ProgInstruction::Instruct1 { data: 10 });
+        serde_json::from_slice(input).map_err(|e| {
+            msg!("Error parsing input data {:?}", e);
+            ProgramError::InvalidInstructionData
+        })
     }
 
-    /// Packs a [ProgInstruction](enum.ProgInstruction.html) into a byte buffer.
+    /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
-        return vec![];
+        // TODO: better error handling?
+        serde_json::to_vec(self).unwrap()
     }
 }
 
