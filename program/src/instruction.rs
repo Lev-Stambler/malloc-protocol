@@ -13,13 +13,13 @@ use solana_program::{
 };
 use std::mem::size_of;
 use std::{collections::HashMap, convert::TryInto};
-use wasm_bindgen::prelude::*;
 
 /// Minimum number of multisignature signers (min N)
 pub const MIN_SIGNERS: usize = 1;
 /// Maximum number of multisignature signers (max N)
 pub const MAX_SIGNERS: usize = 11;
 
+#[derive(Serialize, Deserialize)]
 struct Basket {
     /// The calls that the basket makes
     calls: Vec<String>,
@@ -32,6 +32,7 @@ struct Basket {
     input: Pubkey,
 }
 /// The program state
+#[derive(Serialize, Deserialize)]
 pub struct ProgState {
     /// A map of all names to pubkeys for the calls
     /// TODO: make more efficient than std HashMap
@@ -50,6 +51,22 @@ pub enum ProgInstruction {
     EnactBasket { basket_name: String },
 }
 
+impl ProgState {
+    // TODO: make use of something more efficient than JSON
+    /// Using json packing
+    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+        serde_json::from_slice(input).map_err(|e| {
+            msg!("Error parsing input data {:?}", e);
+            ProgramError::InvalidInstructionData
+        })
+    }
+
+    /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
+    pub fn pack(&self) -> Vec<u8> {
+        // TODO: better error handling?
+        serde_json::to_vec(self).unwrap()
+    }
+}
 impl ProgInstruction {
     // TODO: make use of something more efficient than JSON
     /// Using json packing

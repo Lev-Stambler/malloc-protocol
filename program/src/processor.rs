@@ -1,5 +1,6 @@
 //! Program state processor
 
+use instruction::ProgState;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -8,11 +9,21 @@ use std::str::from_utf8;
 
 use crate::instruction::{self, ProgInstruction};
 
-fn process_register_call(sender: &Pubkey, from: String, to: &Pubkey) -> ProgramResult {
+fn process_register_call(
+    sender: &Pubkey,
+    mut prog_state: &ProgState,
+    program_data: *mut u8,
+    from: String,
+    to: &Pubkey,
+) -> ProgramResult {
     Ok(())
 }
 
-fn process_enact_basket(sender: &Pubkey, basket_name: String) -> ProgramResult {
+fn process_enact_basket(
+    sender: &Pubkey,
+    prog_state: &ProgState,
+    basket_name: String,
+) -> ProgramResult {
     Ok(())
 }
 /// Instruction processor
@@ -33,14 +44,35 @@ pub fn process_instruction(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    let program_info = account_info_iter
+        .next()
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if program_info.owner != _program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
     let instruction = ProgInstruction::unpack(input)?;
+    let prog_ref_cell_data = program_info.data.try_borrow_mut().map_err(|e| {
+        msg!("Error with getting the program data: {:?}", e);
+        ProgramError::InvalidAccountData
+    })?;
+    let mut prog_state = ProgState::unpack(prog_ref_cell_data.as_ref())?;
 
     match instruction {
         ProgInstruction::RegisterCall { from, to } => {
-            process_register_call(account_info.owner, from, to)
+            // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
+            // not sure if its right
+            let prog_data_ptr = prog_ref_cell_data.as_ptr() as usize as *mut u8;
+            process_register_call(
+                account_info.owner,
+                &mut prog_state,
+                prog_data_ptr,
+                from,
+                &to,
+            )
         }
         ProgInstruction::EnactBasket { basket_name } => {
-            process_enact_basket(account_info.owner, basket_name)
+            process_enact_basket(account_info.owner, &prog_state, basket_name)
         }
     }
 }
