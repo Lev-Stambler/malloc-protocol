@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import './web3/solana'
+import { connectWallet } from './web3/solana';
 
 function App() {
   useEffect(() => {
-
+    connectWallet()
 
   }, []);
   return (

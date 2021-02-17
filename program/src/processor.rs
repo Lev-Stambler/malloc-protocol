@@ -8,11 +8,11 @@ use std::str::from_utf8;
 
 use crate::instruction::{self, ProgInstruction};
 
-fn process_register_call(sender: &Pubkey) -> ProgramResult {
+fn process_register_call(sender: &Pubkey, from: String, to: &Pubkey) -> ProgramResult {
     Ok(())
 }
 
-fn process_enact_basket(sender: &Pubkey) -> ProgramResult {
+fn process_enact_basket(sender: &Pubkey, basket_name: String) -> ProgramResult {
     Ok(())
 }
 /// Instruction processor
@@ -36,8 +36,12 @@ pub fn process_instruction(
     let instruction = ProgInstruction::unpack(input)?;
 
     match instruction {
-        ProgInstruction::RegisterCall { from, to } => process_register_call(account_info.owner),
-        ProgInstruction::EnactBasket { basket_name } => process_enact_basket(account_info.owner),
+        ProgInstruction::RegisterCall { from, to } => {
+            process_register_call(account_info.owner, from, to)
+        }
+        ProgInstruction::EnactBasket { basket_name } => {
+            process_enact_basket(account_info.owner, basket_name)
+        }
     }
 }
 
