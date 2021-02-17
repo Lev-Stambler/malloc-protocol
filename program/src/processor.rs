@@ -26,7 +26,13 @@ fn process_enact_basket(
 ) -> ProgramResult {
     Ok(())
 }
+
 /// Instruction processor
+/// The first account is an account associated with the sender. The second account
+/// is the account associated with the contract
+// TODO: where does this second account come from? Maybe there has to be an init
+// instruction which creates a new account with the _program_id as the owner? (Or maybe there is j one made on a frontend 
+// and thats j what is used)
 pub fn process_instruction(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -85,68 +91,68 @@ mod tests {
     };
     use solana_sdk::account::Account;
 
-    #[test]
-    fn test_utf8_memo() {
-        let program_id = Pubkey::new(&[0; 32]);
+    // #[test]
+    // fn test_utf8_memo() {
+    //     let program_id = Pubkey::new(&[0; 32]);
 
-        let string = b"letters and such";
-        assert_eq!(Ok(()), process_instruction(&program_id, &[], string));
+    //     let string = b"letters and such";
+    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], string));
 
-        let emoji = "🐆".as_bytes();
-        let bytes = [0xF0, 0x9F, 0x90, 0x86];
-        assert_eq!(emoji, bytes);
-        assert_eq!(Ok(()), process_instruction(&program_id, &[], &emoji));
+    //     let emoji = "🐆".as_bytes();
+    //     let bytes = [0xF0, 0x9F, 0x90, 0x86];
+    //     assert_eq!(emoji, bytes);
+    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], &emoji));
 
-        let mut bad_utf8 = bytes;
-        bad_utf8[3] = 0xFF; // Invalid UTF-8 byte
-        assert_eq!(
-            Err(ProgramError::InvalidInstructionData),
-            process_instruction(&program_id, &[], &bad_utf8)
-        );
-    }
+    //     let mut bad_utf8 = bytes;
+    //     bad_utf8[3] = 0xFF; // Invalid UTF-8 byte
+    //     assert_eq!(
+    //         Err(ProgramError::InvalidInstructionData),
+    //         process_instruction(&program_id, &[], &bad_utf8)
+    //     );
+    // }
 
-    #[test]
-    fn test_signers() {
-        let program_id = Pubkey::new(&[0; 32]);
-        let memo = "🐆".as_bytes();
+    // #[test]
+    // fn test_signers() {
+    //     let program_id = Pubkey::new(&[0; 32]);
+    //     let memo = "🐆".as_bytes();
 
-        let pubkey0 = Pubkey::new_unique();
-        let pubkey1 = Pubkey::new_unique();
-        let pubkey2 = Pubkey::new_unique();
-        let mut account0 = Account::default();
-        let mut account1 = Account::default();
-        let mut account2 = Account::default();
+    //     let pubkey0 = Pubkey::new_unique();
+    //     let pubkey1 = Pubkey::new_unique();
+    //     let pubkey2 = Pubkey::new_unique();
+    //     let mut account0 = Account::default();
+    //     let mut account1 = Account::default();
+    //     let mut account2 = Account::default();
 
-        let signed_account_infos = vec![
-            (&pubkey0, true, &mut account0).into_account_info(),
-            (&pubkey1, true, &mut account1).into_account_info(),
-            (&pubkey2, true, &mut account2).into_account_info(),
-        ];
-        assert_eq!(
-            Ok(()),
-            process_instruction(&program_id, &signed_account_infos, memo)
-        );
+    //     let signed_account_infos = vec![
+    //         (&pubkey0, true, &mut account0).into_account_info(),
+    //         (&pubkey1, true, &mut account1).into_account_info(),
+    //         (&pubkey2, true, &mut account2).into_account_info(),
+    //     ];
+    //     assert_eq!(
+    //         Ok(()),
+    //         process_instruction(&program_id, &signed_account_infos, memo)
+    //     );
 
-        assert_eq!(Ok(()), process_instruction(&program_id, &[], memo));
+    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], memo));
 
-        let unsigned_account_infos = vec![
-            (&pubkey0, false, &mut account0).into_account_info(),
-            (&pubkey1, false, &mut account1).into_account_info(),
-            (&pubkey2, false, &mut account2).into_account_info(),
-        ];
-        assert_eq!(
-            Err(ProgramError::MissingRequiredSignature),
-            process_instruction(&program_id, &unsigned_account_infos, memo)
-        );
+    //     let unsigned_account_infos = vec![
+    //         (&pubkey0, false, &mut account0).into_account_info(),
+    //         (&pubkey1, false, &mut account1).into_account_info(),
+    //         (&pubkey2, false, &mut account2).into_account_info(),
+    //     ];
+    //     assert_eq!(
+    //         Err(ProgramError::MissingRequiredSignature),
+    //         process_instruction(&program_id, &unsigned_account_infos, memo)
+    //     );
 
-        let partially_signed_account_infos = vec![
-            (&pubkey0, true, &mut account0).into_account_info(),
-            (&pubkey1, false, &mut account1).into_account_info(),
-            (&pubkey2, true, &mut account2).into_account_info(),
-        ];
-        assert_eq!(
-            Err(ProgramError::MissingRequiredSignature),
-            process_instruction(&program_id, &partially_signed_account_infos, memo)
-        );
-    }
+    //     let partially_signed_account_infos = vec![
+    //         (&pubkey0, true, &mut account0).into_account_info(),
+    //         (&pubkey1, false, &mut account1).into_account_info(),
+    //         (&pubkey2, true, &mut account2).into_account_info(),
+    //     ];
+    //     assert_eq!(
+    //         Err(ProgramError::MissingRequiredSignature),
+    //         process_instruction(&program_id, &partially_signed_account_infos, memo)
+    //     );
+    // }
 }
