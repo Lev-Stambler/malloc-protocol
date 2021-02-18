@@ -11,11 +11,23 @@ use crate::instruction::{self, ProgInstruction};
 
 fn process_register_call(
     sender: &Pubkey,
-    mut prog_state: &ProgState,
+    prog_state: &mut ProgState,
     program_data: *mut u8,
-    from: String,
-    to: &Pubkey,
+    call_input: String,
+    name: String,
+    to: Pubkey,
 ) -> ProgramResult {
+    if let Some(_addr) = prog_state.wrapped_call_addrs.get(&name) {
+        msg!("This name already exists as a registered call");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    // TODO: if it's not in there, do we want the user to allow for adding this?
+    if let None = prog_state.supported_wrapped_call_inputs.get(&call_input) {
+        msg!("The w-call's inputs must be supported");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let _ = prog_state.wrapped_call_addrs.insert(name, to);
+    prog_state.write_new_prog_state(program_data)?;
     Ok(())
 }
 
@@ -24,6 +36,7 @@ fn process_enact_basket(
     prog_state: &ProgState,
     basket_name: String,
 ) -> ProgramResult {
+
     Ok(())
 }
 
@@ -31,7 +44,7 @@ fn process_enact_basket(
 /// The first account is an account associated with the sender. The second account
 /// is the account associated with the contract
 // TODO: where does this second account come from? Maybe there has to be an init
-// instruction which creates a new account with the _program_id as the owner? (Or maybe there is j one made on a frontend 
+// instruction which creates a new account with the _program_id as the owner? (Or maybe there is j one made on a frontend
 // and thats j what is used)
 pub fn process_instruction(
     _program_id: &Pubkey,
@@ -65,7 +78,11 @@ pub fn process_instruction(
     let mut prog_state = ProgState::unpack(prog_ref_cell_data.as_ref())?;
 
     match instruction {
-        ProgInstruction::RegisterCall { from, to } => {
+        ProgInstruction::RegisterCall {
+            call_input,
+            call_name: name,
+            to,
+        } => {
             // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
             let prog_data_ptr = prog_ref_cell_data.as_ptr() as usize as *mut u8;
@@ -73,12 +90,17 @@ pub fn process_instruction(
                 account_info.owner,
                 &mut prog_state,
                 prog_data_ptr,
-                from,
-                &to,
+                call_input,
+                name,
+                to,
             )
         }
         ProgInstruction::EnactBasket { basket_name } => {
             process_enact_basket(account_info.owner, &prog_state, basket_name)
+        }
+        ProgInstruction::CreateBasket {name, calls, splits} => {
+
+            Ok(())
         }
     }
 }

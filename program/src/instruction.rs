@@ -11,8 +11,8 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar,
 };
-use std::mem::size_of;
 use std::{collections::HashMap, convert::TryInto};
+use std::{mem::size_of, slice::from_raw_parts_mut};
 
 /// Minimum number of multisignature signers (min N)
 pub const MIN_SIGNERS: usize = 1;
@@ -20,7 +20,7 @@ pub const MIN_SIGNERS: usize = 1;
 pub const MAX_SIGNERS: usize = 11;
 
 #[derive(Serialize, Deserialize)]
-struct Basket {
+pub struct Basket {
     /// The calls that the basket makes
     calls: Vec<String>,
     /// the proportional split of every element in calls such that all elems
@@ -29,29 +29,55 @@ struct Basket {
     /// the basket's creator
     creator: Pubkey,
     /// the input SPL type address
-    input: Pubkey,
+    input: String,
 }
 /// The program state
 #[derive(Serialize, Deserialize)]
 pub struct ProgState {
     /// A map of all names to pubkeys for the calls
     /// TODO: make more efficient than std HashMap
-    wrapped_call_addrs: HashMap<String, Pubkey>,
+    pub wrapped_call_addrs: HashMap<String, Pubkey>,
     /// All the baskets with the basket name as a key
-    baskets: HashMap<String, Basket>,
+    pub baskets: HashMap<String, Basket>,
     /// All the supported outputs that pipe into the wrapped calls
-    supported_outputs: HashMap<String, Pubkey>,
+    pub supported_wrapped_call_inputs: HashMap<String, Pubkey>,
 }
 
 /// Instructions supported by the token program.
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ProgInstruction {
-    RegisterCall { from: String, to: Pubkey },
-    EnactBasket { basket_name: String },
+    RegisterCall {
+        call_input: String,
+        call_name: String,
+        to: Pubkey,
+    },
+    CreateBasket {
+        name: String,
+        calls: Vec<String>,
+        splits: Vec<i32>,
+    },
+    EnactBasket {
+        basket_name: String,
+    },
+}
+
+impl Basket {
+    pub fn new(name: String, calls: Vec<String>, splits: Vec<i32>, prog_state: &ProgState) -> &Self {
+        unimplemented!()
+    }
 }
 
 impl ProgState {
+    pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
+        unsafe {
+            let encoded = self.pack();
+            let data = from_raw_parts_mut(data_ptr, encoded.len());
+            data.copy_from_slice(encoded.as_slice());
+        };
+        Ok(())
+    }
+
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {

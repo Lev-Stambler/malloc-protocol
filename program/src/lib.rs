@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 
 //! A program that accepts a string of encoded characters and verifies that it parses,
 //! while verifying and logging signers. Currently handles UTF-8 characters.
