@@ -60,7 +60,7 @@ pub enum ProgInstruction {
     EnactBasket {
         basket_name: String,
     },
-    InitMalloc,
+    InitMalloc {},
 }
 
 impl Basket {

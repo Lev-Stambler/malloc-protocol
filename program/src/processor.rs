@@ -1,5 +1,4 @@
 //! Program state processor
-
 use crate::instruction::{self, ProgInstruction, ProgState, Basket};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
@@ -48,20 +47,20 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {
+    msg!("PROCESS: looking at proc instr");
     let account_info_iter = &mut accounts.iter();
     let program_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    if program_info.owner != _program_id {
-        return Err(ProgramError::IncorrectProgramId);
-    }
 
+    msg!("PROCESS: got program_info with account {} and data {:?}", program_info.owner, input);
     let instruction = ProgInstruction::unpack(input)?;
-    let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
-    if instruction == ProgInstruction::InitMalloc {
+    if let ProgInstruction::InitMalloc {} = instruction {
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
+
+    let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
 
     let account_info = account_info_iter
         .next()
@@ -97,7 +96,7 @@ pub fn process_instruction(
         ProgInstruction::EnactBasket { basket_name } => {
             process_enact_basket(account_info.owner, &prog_state, basket_name)
         }
-        ProgInstruction::InitMalloc => {
+        ProgInstruction::InitMalloc {} => {
             Ok(())
         }
         ProgInstruction::CreateBasket {
