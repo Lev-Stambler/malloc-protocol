@@ -1,3 +1,4 @@
+// TODO: change over to Rust for functional test
 //@ts-ignore
 import {
   Account,
@@ -10,6 +11,7 @@ import {
 } from "@solana/web3.js";
 //@ts-ignore
 import bs58 from "bs58";
+import { assert } from "console";
 const progId = new PublicKey(
   process.env.PROGRAM_ID || "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
 );
@@ -32,7 +34,7 @@ async function initDataAccount(
     fromPubkey: account.publicKey,
     newAccountPubkey: data_account.publicKey,
     lamports: 1000000000,
-    space: 3,
+    space: 1024 * 1024, // this is like bytes, wholly poop, so this is 1 meg
     programId: progId,
   });
   try {
@@ -75,6 +77,14 @@ async function initMallocData(connection: Connection, data_account: Account) {
       }
     );
     console.log("Initialized the data in data_account");
+    const data_account_info = await connection.getAccountInfo(
+      data_account.publicKey
+    );
+    console.log(
+      new TextDecoder("utf-8").decode(
+        new Uint8Array(data_account_info?.data || [])
+      )
+    );
   } catch (e) {
     console.error(e);
     throw e;
@@ -98,6 +108,14 @@ describe("Run a standard set of Malloc tests", async function () {
     this.timeout(20000);
     conn = await initAccounts();
     await initMallocData(conn, data_account);
+  });
+  it("fails if already registered", async () => {
+    try {
+      await initDataAccount(conn, account, data_account);
+      assert(false);
+    } catch (e) {
+      assert(true);
+    }
   });
   xit("register a few new WCalls, then create a basket, then execute that basket", async () => {});
 });
