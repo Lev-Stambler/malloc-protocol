@@ -53,36 +53,19 @@ export enum ProgramInstruction {
   InitMalloc = "InitMalloc",
 }
 
-export function approve(
-  instructions: TransactionInstruction[],
-  cleanupInstructions: TransactionInstruction[],
-  account: PublicKey,
-  owner: PublicKey,
-  amount: number,
-  autoRevoke = true,
-
-  // if delegate is not passed ephemeral transfer authority is used
-  delegate?: PublicKey
-): Account {
-  const tokenProgram = TOKEN_PROGRAM_ID;
-  const transferAuthority = new Account();
-
-  instructions.push(
-    Token.createApproveInstruction(
-      tokenProgram,
-      account,
-      delegate ?? transferAuthority.publicKey,
-      owner,
-      [],
-      amount
-    )
-  );
-
-  if (autoRevoke) {
-    cleanupInstructions.push(
-      Token.createRevokeInstruction(tokenProgram, account, owner, [])
-    );
-  }
-
-  return transferAuthority;
+export async function registerCall(
+  args: RegisterCallArgs
+): Promise<TransactionInstruction> {
+  // TODO: implement
 }
+export async function createBasket(args: CreateBasketArgs) {
+  // TODO: implement
+}
+export async function enactBasket(args: EnactBasketArgs) {
+  // TODO: implement
+}
+export async function initMalloc(args: InitMallocArgs) {
+  // TODO: implement
+}
+
+async function sendInstructions() {}
