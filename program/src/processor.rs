@@ -49,17 +49,6 @@ pub fn process_instruction(
     input: &[u8],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    let account_info = account_info_iter
-        .next()
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    if let Some(address) = account_info.signer_key() {
-        if address != account_info.owner {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-    } else {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
     let program_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -73,6 +62,19 @@ pub fn process_instruction(
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
+
+    let account_info = account_info_iter
+        .next()
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    if let Some(address) = account_info.signer_key() {
+        if address != account_info.owner {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+    } else {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+
 
     match instruction {
         ProgInstruction::RegisterCall {
