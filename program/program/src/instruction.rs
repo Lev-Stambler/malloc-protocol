@@ -11,7 +11,7 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar,
 };
-use std::{collections::{BTreeMap, HashMap}, convert::TryInto, hash::Hash};
+use std::{collections::HashMap, convert::TryInto};
 use std::{mem::size_of, slice::from_raw_parts_mut};
 
 /// Minimum number of multisignature signers (min N)
@@ -36,11 +36,11 @@ pub struct Basket {
 pub struct ProgState {
     /// A map of all names to pubkeys for the calls
     /// TODO: make more efficient than std HashMap
-    pub wrapped_call_addrs: BTreeMap<String, Pubkey>,
+    pub wrapped_call_addrs: i32, //HashMap<String, Pubkey>,
     /// All the baskets with the basket name as a key
-    pub baskets: BTreeMap<String, Basket>,
+    pub baskets: i32, //HashMap<String, Basket>,
     /// All the supported outputs that pipe into the wrapped calls
-    pub supported_wrapped_call_inputs: BTreeMap<String, Pubkey>,
+    pub supported_wrapped_call_inputs: i32, // HashMap<String, Pubkey>,
 }
 
 /// Instructions supported by the token program.
@@ -60,30 +60,20 @@ pub enum ProgInstruction {
     EnactBasket {
         basket_name: String,
     },
-    InitMalloc,
 }
 
 impl Basket {
-    pub fn new(calls: Vec<String>, splits: Vec<i32>, creator: Pubkey, input: String) -> Self {
+    pub fn new(name: String, calls: Vec<String>, splits: Vec<i32>, prog_state: &ProgState) -> Self {
         Basket {
-            calls,
-            splits,
-            creator,
-            input,
+            calls: vec![],
+            splits: vec![],
+            creator: Pubkey::default(),
+            input: "ST".to_string(),
         }
     }
 }
 
 impl ProgState {
-    pub fn new() -> Self {
-        // TODO: checks
-        ProgState {
-            wrapped_call_addrs: BTreeMap::default(),
-            baskets: BTreeMap::default(),
-            supported_wrapped_call_inputs: BTreeMap::default()
-        }
-    }
-
     pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
         unsafe {
             let encoded = self.pack();
@@ -96,7 +86,7 @@ impl ProgState {
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        serde_json::from_slice(input).map_err(|e| {
+        bincode::deserialize(input).map_err(|e| {
             msg!("Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
