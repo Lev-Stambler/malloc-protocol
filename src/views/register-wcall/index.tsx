@@ -20,7 +20,7 @@ export const RegisterWCallView = () => {
   const registerDummyWcall = useCallback(async () => {
     console.log("register dummy");
     const malloc = new Malloc(
-      new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
+      new PublicKey("J5sjYdsXQcirpm6c5uhQosDHEKBsg6KDYzBYhM7afNC7"),
       new PublicKey("25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr")
     );
     const insts: TransactionInstruction[] = [];

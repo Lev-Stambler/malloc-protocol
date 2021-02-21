@@ -19,6 +19,7 @@ import {
   EnactBasketArgs,
   InitMallocArgs,
 } from "../models/malloc";
+import { serializePubkey } from "../utils/utils";
 
 export class Malloc {
   private progStateAccount: PublicKey;
@@ -39,13 +40,13 @@ export class Malloc {
       isWCallChained(args.wcall.data)
     ) {
       wcall = {
-        chained: (args.wcall.data as PublicKey[]).map((k) => k.toBase58()),
+        Chained: (args.wcall.data as PublicKey[]).map((k) => serializePubkey(k)), //.toBase58()),
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
       isWCallSimple(args.wcall.data)
     ) {
-      wcall = { simple: (args.wcall.data as PublicKey).toBase58() };
+      wcall = { Simple: serializePubkey(args.wcall.data as PublicKey) };
     } else {
       throw "Invalid WCall type and args";
     }
@@ -64,7 +65,7 @@ export class Malloc {
           },
         ],
         programId: this.progId,
-        data: Buffer.from(JSON.stringify(sending_args)),
+        data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
       })
     );
   }

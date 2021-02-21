@@ -21,6 +21,10 @@ export const formatPriceNumber = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 8,
 });
 
+export function serializePubkey(key: PublicKey) {
+  return [...key.toBuffer()];
+}
+
 export function useLocalStorageState(key: string, defaultState?: string) {
   const [state, setState] = useState(() => {
     // NOTE: Not sure if this is ok

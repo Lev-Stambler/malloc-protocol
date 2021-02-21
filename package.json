@@ -50,12 +50,7 @@
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
-    "run-localnet": "solana-test-validator",
-    "localnet:update": "solana-localnet update",
-    "localnet:up": "rm client/util/store/config.json; set -x; solana-localnet down; set -e; solana-localnet up",
-    "localnet:down": "solana-localnet down",
-    "localnet:logs": "solana-localnet logs -f",
-    "test-functional": "mocha -r ts-node/register functional-tests/*.ts",
+    "test-functional": "cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"commonjs\" }' mocha -r ts-node/register functional-tests/*.ts",
     "predeploy": "git pull --ff-only && yarn && yarn build",
     "deploy": "gh-pages -d build",
     "deploy:ar": "arweave deploy-dir build --key-file ",
@@ -92,6 +87,7 @@
     "@types/react": "^16.9.50",
     "@types/react-dom": "^16.9.8",
     "arweave-deploy": "^1.9.1",
+    "cross-env": "^7.0.3",
     "gh-pages": "^3.1.0",
     "prettier": "^2.1.2"
   }
