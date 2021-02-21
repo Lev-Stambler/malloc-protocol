@@ -46,7 +46,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build-contract": "cd program && cargo build-bpf",
+    "start-contract": "./scripts/start-contract.sh",
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
