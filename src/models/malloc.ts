@@ -10,6 +10,24 @@ import { TOKEN_PROGRAM_ID } from "../utils/ids";
 
 type PubKeyRep = Uint8Array;
 
+export interface BasketNode {
+  name: string
+  splits: number[];
+  calls: (WCallSimpleNode | WCallChainedNode | BasketNode)[];
+}
+
+export interface WCallSimpleNode {
+  name: string;
+  wcall: PublicKey;
+}
+
+export interface WCallChainedNode {
+  name: string;
+  wcall: PublicKey;
+  callbackBasket: BasketNode;
+}
+
+
 export interface Basket {
   calls: string[];
   splits: number[];
@@ -23,6 +41,7 @@ export enum WCallTypes {
 }
 
 export type WCallSimple = PublicKey;
+
 export function isWCallSimple(v: any) {
   return v instanceof PublicKey;
 }
@@ -31,14 +50,13 @@ export function isWCallSimple(v: any) {
  * @info The first Pubkey is for the WCall's address, the second for the callback
  * basket
  */
-export type WCallChained = PublicKey[];
+export interface WCallChained  {
+  wcall: PublicKey;
+  callbackBasket: string;
+}
+
 export function isWCallChained(v: any) {
-  return (
-    v instanceof Array &&
-    v.length === 2 &&
-    v[0] instanceof PublicKey &&
-    v[1] instanceof PublicKey
-  );
+  return v.hasOwnProperty("callbackBasket");
 }
 
 export interface MallocState {
