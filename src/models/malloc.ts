@@ -56,7 +56,7 @@ export enum ProgramInstruction {
 export async function registerCall(
   args: RegisterCallArgs
 ): Promise<TransactionInstruction> {
-  // TODO: implement
+  return new TransactionInstruction()
 }
 export async function createBasket(args: CreateBasketArgs) {
   // TODO: implement
