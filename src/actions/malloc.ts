@@ -33,17 +33,19 @@ export class Malloc {
     instructions: TransactionInstruction[],
     args: RegisterCallArgs
   ) {
-    let wcall;
+    let wcall: any;
     if (
       args.wcall.type === WCallTypes.Chained &&
       isWCallChained(args.wcall.data)
     ) {
-      wcall = { chained: args.wcall.data };
+      wcall = {
+        chained: (args.wcall.data as PublicKey[]).map((k) => k.toBase58()),
+      };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
       isWCallSimple(args.wcall.data)
     ) {
-      wcall = { simple: args.wcall.data };
+      wcall = { simple: (args.wcall.data as PublicKey).toBase58() };
     } else {
       throw "Invalid WCall type and args";
     }
@@ -62,7 +64,7 @@ export class Malloc {
           },
         ],
         programId: this.progId,
-        data: Buffer.from(sending_args),
+        data: Buffer.from(JSON.stringify(sending_args)),
       })
     );
   }
@@ -77,9 +79,9 @@ export class Malloc {
     wallet: WalletAdapter,
     instructions: TransactionInstruction[]
   ) {
-    console.debug(
+    console.log(
       "Sending transaction with instruction data",
-      instructions.map((inst) => inst.data)
+      instructions.map((inst) => new TextDecoder("utf-8").decode(inst.data))
     );
     sendTransaction(connection, wallet, instructions, []);
   }

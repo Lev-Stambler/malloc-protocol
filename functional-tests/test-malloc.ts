@@ -11,7 +11,7 @@ import {
 } from "@solana/web3.js";
 //@ts-ignore
 import bs58 from "bs58";
-import { assert } from "console";
+import { assert } from "chai";
 const progId = new PublicKey(
   process.env.PROGRAM_ID || "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
 );

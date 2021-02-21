@@ -46,6 +46,11 @@ export const HomeView = () => {
           <Button>Faucet</Button>
         </Link>
       </Col>
+      <Col span={12}>
+        <Link to="/register-wcall">
+          <Button>Register Wcall</Button>
+        </Link>
+      </Col>
       <Col span={24}>
         <div className="builton" />
       </Col>

@@ -22,22 +22,22 @@ export enum WCallTypes {
   Chained = "Chained",
 }
 
-export type WCallSimple = PubKeyRep;
+export type WCallSimple = PublicKey;
 export function isWCallSimple(v: any) {
-  return v instanceof Uint8Array;
+  return v instanceof PublicKey;
 }
 
 /**
  * @info The first Pubkey is for the WCall's address, the second for the callback
  * basket
  */
-export type WCallChained = [PubKeyRep, PubKeyRep];
+export type WCallChained = PublicKey[];
 export function isWCallChained(v: any) {
   return (
     v instanceof Array &&
     v.length === 2 &&
-    v[0] instanceof Uint8Array &&
-    v[1] instanceof Uint8Array
+    v[0] instanceof PublicKey &&
+    v[1] instanceof PublicKey
   );
 }
 
