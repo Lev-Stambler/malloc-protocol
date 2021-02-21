@@ -24,3 +24,7 @@ yarn-error.log*
 
 test-ledger
 .idea
+
+# Generated frontend
+src/config/program_id.json
+src/config/data_account.json

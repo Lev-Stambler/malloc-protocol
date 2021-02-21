@@ -1,23 +1,17 @@
-# 🏗 Solana App Scaffold
-Scaffolding for a dapp built on Solana
+# Malloc Protocol
 
 # Quickstart
 
 ```bash
-git clone https://github.com/solana-labs/dapp-scaffold.git
+git clone https://github.com/Lev-Stambler/malloc-protocol.git
 
 cd dapp-scaffold
 ```
 
+Make sure to install dependencies
 ```bash
 
-npm install
-
-```
-
-```bash
-
-npm start
+yarn
 
 ```
 
@@ -27,12 +21,23 @@ npm start
 3. Install Node
 4. Install NPM
 
-# Build Smart Contract (compiled for BPF)
+# Getting running
+## Build and run the smart contract locally
 
 ```bash
-$ cargo build-bpf
-$ cargo test-bpf
+$ yarn start-contract
 ```
+In a seperate terminal
+```bash
+$ yarn start
+```
+
+Every time you want to refresh the program state, you can run 
+```bash
+$ yarn init-malloc-contract
+```
+
+
 # Directory structure
 
 ## program

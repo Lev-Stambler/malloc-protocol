@@ -45,8 +45,9 @@
     "**/@typescript-eslint/parser": "^4.1.1"
   },
   "scripts": {
-    "start": "craco start",
+    "start": "yarn init-malloc-contract && craco start",
     "start-contract": "./scripts/start-contract.sh",
+    "init-malloc-contract": "cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"commonjs\" }' npx ts-node scripts/init-malloc/create-malloc-master-account.ts",
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",
@@ -83,7 +84,7 @@
     "@types/jest": "^24.9.1",
     "@types/ledgerhq__hw-transport": "^4.21.3",
     "@types/ledgerhq__hw-transport-webusb": "^4.70.1",
-    "@types/node": "^12.12.62",
+    "@types/node": "^14.14.31",
     "@types/react": "^16.9.50",
     "@types/react-dom": "^16.9.8",
     "arweave-deploy": "^1.9.1",
