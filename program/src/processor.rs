@@ -1,5 +1,5 @@
 //! Program state processor
-use crate::instruction::{self, ProgInstruction, ProgState, Basket};
+use crate::instruction::{self, ProgInstruction, ProgState, Basket, WCall};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -12,18 +12,18 @@ fn process_register_call(
     program_data: *mut u8,
     call_input: String,
     name: String,
-    to: Pubkey,
+    wcall: WCall,
 ) -> ProgramResult {
-    if let Some(_addr) = prog_state.wrapped_call_addrs.get(&name) {
+    if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
         msg!("This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
-    //     // TODO: if it's not in there, do we want the user to allow for adding this?
+    // TODO: if it's not in there, do we want the user to allow for adding this?
     if let None = prog_state.supported_wrapped_call_inputs.get(&call_input) {
         msg!("The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
     }
-    let _ = prog_state.wrapped_call_addrs.insert(name, to);
+    let _ = prog_state.wrapped_calls.insert(name, wcall);
     prog_state.write_new_prog_state(program_data)?;
     Ok(())
 }
@@ -33,6 +33,26 @@ fn process_enact_basket(
     prog_state: &ProgState,
     basket_name: String,
 ) -> ProgramResult {
+    // TODO: impl me
+    Ok(())
+}
+
+fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResult {
+    if let Ok(_) = ProgState::unpack(program_inp) {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let new_state = ProgState::new();
+    new_state.write_new_prog_state(program_data);
+    Ok(())
+}
+
+fn process_create_basket(
+    prog_state: &mut ProgState,
+    program_data: *mut u8,
+    name: String, calls: Vec<String>, splits: Vec<i32>) -> ProgramResult {
+    // TODO: checking
+    let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
+    prog_state.baskets.insert(name, new_basket);
     Ok(())
 }
 
@@ -79,7 +99,7 @@ pub fn process_instruction(
         ProgInstruction::RegisterCall {
             call_input,
             call_name: name,
-            to,
+            wcall,
         } => {
             // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
@@ -90,7 +110,7 @@ pub fn process_instruction(
                 prog_data_ptr,
                 call_input,
                 name,
-                to,
+                wcall,
             )
         }
         ProgInstruction::EnactBasket { basket_name } => {
@@ -108,25 +128,6 @@ pub fn process_instruction(
             process_create_basket(&mut prog_state, prog_data_ptr, name, calls, splits)
         }
     }
-}
-
-fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResult {
-    if let Ok(_) = ProgState::unpack(program_inp) {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let new_state = ProgState::new();
-    new_state.write_new_prog_state(program_data);
-    Ok(())
-}
-
-fn process_create_basket(
-    prog_state: &mut ProgState,
-    program_data: *mut u8,
-    name: String, calls: Vec<String>, splits: Vec<i32>) -> ProgramResult {
-    // TODO: checking
-    let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
-    prog_state.baskets.insert(name, new_basket);
-    Ok(())
 }
 
 #[cfg(test)]

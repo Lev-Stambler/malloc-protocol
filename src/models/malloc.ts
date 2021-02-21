@@ -17,10 +17,37 @@ export interface Basket {
   input: string;
 }
 
+export enum WCallTypes {
+  Simple = "Simple",
+  Chained = "Chained",
+}
+
+export type WCallSimple = PubKeyRep;
+export function isWCallSimple(v: any) {
+  return v instanceof Uint8Array;
+}
+
+/**
+ * @info The first Pubkey is for the WCall's address, the second for the callback
+ * basket
+ */
+export type WCallChained = [PubKeyRep, PubKeyRep];
+export function isWCallChained(v: any) {
+  return (
+    v instanceof Array &&
+    v.length === 2 &&
+    v[0] instanceof Uint8Array &&
+    v[1] instanceof Uint8Array
+  );
+}
+
 export interface MallocState {
   // name to public key
-  wrapped_call_addrs: {
-    [name: string]: PubKeyRep;
+  wrapped_calls: {
+    [name: string]: {
+      type: WCallTypes;
+      data: WCallChained | WCallSimple;
+    };
   };
   baskets: {
     [name: string]: Basket;
@@ -34,7 +61,10 @@ export interface MallocState {
 export interface RegisterCallArgs {
   call_input: String;
   call_name: String;
-  to: PubKeyRep;
+  wcall: {
+    type: WCallTypes;
+    data: WCallChained | WCallSimple;
+  };
 }
 export interface CreateBasketArgs {
   name: string;
@@ -52,20 +82,3 @@ export enum ProgramInstruction {
   EnactBasket = "EnactBasket",
   InitMalloc = "InitMalloc",
 }
-
-export async function registerCall(
-  args: RegisterCallArgs
-): Promise<TransactionInstruction> {
-  return new TransactionInstruction()
-}
-export async function createBasket(args: CreateBasketArgs) {
-  // TODO: implement
-}
-export async function enactBasket(args: EnactBasketArgs) {
-  // TODO: implement
-}
-export async function initMalloc(args: InitMallocArgs) {
-  // TODO: implement
-}
-
-async function sendInstructions() {}

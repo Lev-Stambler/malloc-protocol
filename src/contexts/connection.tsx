@@ -209,6 +209,14 @@ const getErrorForTransaction = async (connection: Connection, txid: string) => {
   return errors;
 };
 
+/**
+ * 
+ * @param connection 
+ * @param wallet 
+ * @param instructions 
+ * @param signers The wallet account is automatically included
+ * @param awaitConfirmation 
+ */
 export const sendTransaction = async (
   connection: Connection,
   wallet: WalletAdapter,

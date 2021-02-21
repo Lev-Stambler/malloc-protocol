@@ -14,33 +14,44 @@ use solana_program::{
 use std::{collections::{BTreeMap, HashMap}, convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
 
+type WCallAddr = Pubkey;
+type WCallName = String;
+type WCallInputName = String;
+type BasketName = String;
+
 /// Minimum number of multisignature signers (min N)
 pub const MIN_SIGNERS: usize = 1;
 /// Maximum number of multisignature signers (max N)
 pub const MAX_SIGNERS: usize = 11;
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub enum WCall {
+    Simple(WCallAddr),
+    Chained(WCallAddr, BasketName)
+}
+
 #[derive(Serialize, Deserialize, Default)]
 pub struct Basket {
     /// The calls that the basket makes
-    pub calls: Vec<String>,
+    pub calls: Vec<WCallName>,
     /// the proportional split of every element in calls such that all elems
     /// sum to 1_000
     pub splits: Vec<i32>,
     /// the basket's creator
     pub creator: Pubkey,
     /// the input SPL type address
-    pub input: String,
+    pub input: WCallInputName,
 }
 /// The program state
 #[derive(Serialize, Deserialize, Default)]
 pub struct ProgState {
     /// A map of all names to pubkeys for the calls
     /// TODO: make more efficient than std HashMap
-    pub wrapped_call_addrs: BTreeMap<String, Pubkey>,
+    pub wrapped_calls: BTreeMap<WCallName, WCall>,
     /// All the baskets with the basket name as a key
-    pub baskets: BTreeMap<String, Basket>,
+    pub baskets: BTreeMap<BasketName, Basket>,
     /// All the supported outputs that pipe into the wrapped calls
-    pub supported_wrapped_call_inputs: BTreeMap<String, Pubkey>,
+    pub supported_wrapped_call_inputs: BTreeMap<WCallInputName, Pubkey>,
 }
 
 /// Instructions supported by the token program.
@@ -48,17 +59,17 @@ pub struct ProgState {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ProgInstruction {
     RegisterCall {
-        call_input: String,
-        call_name: String,
-        to: Pubkey,
+        call_input: WCallInputName,
+        call_name: WCallName,
+        wcall: WCall
     },
     CreateBasket {
-        name: String,
-        calls: Vec<String>,
+        name: BasketName,
+        calls: Vec<WCallName>,
         splits: Vec<i32>,
     },
     EnactBasket {
-        basket_name: String,
+        basket_name: BasketName,
     },
     InitMalloc {},
 }
@@ -78,7 +89,7 @@ impl ProgState {
     pub fn new() -> Self {
         // TODO: checks
         ProgState {
-            wrapped_call_addrs: BTreeMap::default(),
+            wrapped_calls: BTreeMap::default(),
             baskets: BTreeMap::default(),
             supported_wrapped_call_inputs: BTreeMap::default()
         }
