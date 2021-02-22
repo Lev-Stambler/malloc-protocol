@@ -10,20 +10,19 @@ import { notify } from "../../utils/notifications";
 import { ConnectButton } from "./../../components/ConnectButton";
 import { LABELS } from "../../constants";
 import { Button } from "antd";
-import { Malloc } from "../../actions/malloc";
 import { WCallTypes } from "../../models/malloc";
+import { useMalloc } from "../../contexts/malloc";
 
 export const RegisterWCallView = () => {
-  const connection = useConnection();
 
-  const { wallet } = useWallet();
+  const malloc = useMalloc();
   const registerDummyWcall = useCallback(async () => {
-    console.log("register dummy");
-    const malloc = new Malloc(
-      new PublicKey("J5sjYdsXQcirpm6c5uhQosDHEKBsg6KDYzBYhM7afNC7"),
-      new PublicKey("25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr")
-    );
+    if (!malloc) {
+      console.error("Malloc uninitialized")
+      return;
+    }
     const insts: TransactionInstruction[] = [];
+    malloc.getState();
     malloc.registerCall(insts, {
       call_input: "Eth",
       call_name: "Yo Mom",
@@ -32,10 +31,8 @@ export const RegisterWCallView = () => {
         data: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
       },
     });
-    console.log(wallet);
-    if (wallet !== undefined)
-      await malloc.sendMallocTransaction(connection, wallet, insts);
-  }, [wallet, connection]);
+    await malloc.sendMallocTransaction(insts);
+  }, []);
 
   return (
     <div className="flexColumn" style={{ flex: 1 }}>

@@ -6,10 +6,9 @@ import {
   Transaction,
   Connection,
 } from "@solana/web3.js";
-import {assert} from "console";
-import React, {useEffect, useMemo} from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
-import { WalletAdapter } from "../contexts/wallet";
+import { useWallet, WalletAdapter } from "../contexts/wallet";
 import {
   RegisterCallArgs,
   WCallTypes,
@@ -24,22 +23,34 @@ import {
   Basket,
   MallocState,
 } from "../models/malloc";
+import { serializePubkey } from "../utils/utils";
 
-const PROGRAM_ID = new PublicKey("hi");
+const PROGRAM_STATE_ADDR = new PublicKey(
+  require("../config/data_account.json").data_account_address
+);
+const PROGRAM_ID = new PublicKey(
+  require("../config/program_id.json").programId
+);
 const REFRESH_INTERVAL = 1000;
 const MallocContext = React.createContext<Malloc | null>(null);
 
-export function MallocProvider({ children = null as any}) {
+export function MallocProvider({ children = null as any }) {
   const { endpoint } = useConnectionConfig();
-  const connection = useMemo(() => new Connection(endpoint, "recent"), [ endpoint ]);
-  const malloc = useMemo(() => new Malloc(PROGRAM_ID, PROGRAM_ID, connection), [])
-  
+  const connection = useMemo(() => new Connection(endpoint, "recent"), [
+    endpoint,
+  ]);
+  const { wallet } = useWallet();
+  const malloc = useMemo(
+    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet),
+    [connection, wallet]
+  );
+
   useEffect(() => {
     let timer = 0;
-    
+
     const updateMalloc = async () => {
       await malloc.refresh();
-      
+
       timer = window.setTimeout(() => updateMalloc, REFRESH_INTERVAL);
     };
 
@@ -47,15 +58,11 @@ export function MallocProvider({ children = null as any}) {
 
     return () => {
       window.clearTimeout(timer);
-    }
+    };
   }, []);
 
   return (
-    <MallocContext.Provider
-      value={malloc}
-    >
-      {children}
-    </MallocContext.Provider>
+    <MallocContext.Provider value={malloc}>{children}</MallocContext.Provider>
   );
 }
 
@@ -63,35 +70,54 @@ class Malloc {
   private progStateAccount: PublicKey;
   private progId: PublicKey;
   private connection: Connection;
+  private wallet: WalletAdapter | undefined;
   private state: MallocState | null;
 
-  constructor(_prog_state_account: PublicKey, _prog_id: PublicKey, connection: Connection) {
-    this.progStateAccount = _prog_state_account;
-    this.progId = _prog_id;
+  constructor(
+    progStateAccount: PublicKey,
+    progId: PublicKey,
+    connection: Connection,
+    wallet: WalletAdapter | undefined
+  ) {
+    this.progStateAccount = progStateAccount;
+    this.progId = progId;
     this.state = null;
     this.connection = connection;
+    this.wallet = wallet;
+  }
+
+  public async getState() {
+    const accountInfo = await this.connection.getAccountInfoAndContext(
+      this.progStateAccount
+    );
+    console.log(accountInfo?.value?.data);
   }
 
   public registerCall(
     instructions: TransactionInstruction[],
     args: RegisterCallArgs
   ) {
+    if (!this.wallet) {
+      alert("please connect your wallet first")
+      return
+    }
     let wcall: any;
     if (
       args.wcall.type === WCallTypes.Chained &&
       isWCallChained(args.wcall.data)
     ) {
-      const chainedCall = args.wcall.data as WCallChained;
       wcall = {
-        chained: [chainedCall.wcall.toBase58(), chainedCall.callbackBasket],
+        Chained: ((args.wcall.data as any) as PublicKey[]).map((k) =>
+          serializePubkey(k)
+        ), //.toBase58()),
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
       isWCallSimple(args.wcall.data)
     ) {
-      wcall = { simple: (args.wcall.data as PublicKey).toBase58() };
+      wcall = { Simple: serializePubkey(args.wcall.data as PublicKey) };
     } else {
-      throw new Error("Invalid WCall type and args");
+      throw "Invalid WCall type and args";
     }
     const sending_args = {
       call_input: args.call_input,
@@ -106,9 +132,14 @@ class Malloc {
             pubkey: this.progStateAccount,
             isSigner: false,
           },
+          {
+            isWritable: false,
+            pubkey: this.wallet.publicKey as PublicKey,
+            isSigner: true
+          },
         ],
         programId: this.progId,
-        data: Buffer.from(JSON.stringify(sending_args)),
+        data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
       })
     );
   }
@@ -117,7 +148,7 @@ class Malloc {
     const bufString = data.toString();
     const state = JSON.parse(bufString);
     console.log(state);
-    return state
+    return state;
   }
 
   public async refresh() {
@@ -125,47 +156,51 @@ class Malloc {
       this.state = {
         wrapped_calls: {},
         baskets: {},
-        supported_wrapped_call_inputs: {}
-      }
+        supported_wrapped_call_inputs: {},
+      };
     }
 
-    const accountInfo = await this.connection.getAccountInfo(this.progStateAccount, "single");
+    const accountInfo = await this.connection.getAccountInfo(
+      this.progStateAccount,
+      "single"
+    );
     if (!accountInfo) {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
       return;
     }
-    assert(accountInfo.owner === this.progStateAccount);
-    assert(accountInfo.executable);
     this.state = this.parseAccountState(accountInfo.data);
   }
 
   public getCallGraph(basketName: string): BasketNode {
     if (!this.state) {
-      throw new Error("state not initialized!")
+      throw new Error("state not initialized!");
     }
     const basket = this.state.baskets[basketName];
-    return { 
+    return {
       name: basketName,
       splits: basket.splits,
-      calls: basket.calls.map(callName => {
-        const callDescriptor = (this.state as MallocState).wrapped_calls[callName];
+      calls: basket.calls.map((callName) => {
+        const callDescriptor = (this.state as MallocState).wrapped_calls[
+          callName
+        ];
         switch (callDescriptor.type) {
           case "Chained":
             const callData = callDescriptor.data as WCallChained;
             return {
               name: callName,
               wcall: callData.wcall,
-              callBackBasket: this.getCallGraph(callData.callbackBasket)
-            }
-          default: // "Simple"
+              callBackBasket: this.getCallGraph(callData.callbackBasket),
+            };
+          default:
+            // "Simple"
             const callAddr = callDescriptor.data as PublicKey;
             return {
               name: callName,
-              wcall: callAddr
-            }
+              wcall: callAddr,
+            };
         }
-      })
-    }
+      }),
+    };
   }
 
   createBasket(args: CreateBasketArgs) {
@@ -174,14 +209,20 @@ class Malloc {
   enactBasket(args: EnactBasketArgs) {
     // TODO: implement
   }
-  public async sendMallocTransaction(
-    wallet: WalletAdapter,
-    instructions: TransactionInstruction[]
-  ) {
+  public async sendMallocTransaction(instructions: TransactionInstruction[]) {
+    if (!this.wallet) {
+      alert("please connect your wallet first")
+      return;
+    }
     console.log(
       "Sending transaction with instruction data",
       instructions.map((inst) => new TextDecoder("utf-8").decode(inst.data))
     );
-    sendTransaction(this.connection, wallet, instructions, []);
+    sendTransaction(this.connection, this.wallet, instructions, []);
   }
+}
+
+export function useMalloc() {
+  const malloc = useContext(MallocContext);
+  return malloc;
 }

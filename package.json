@@ -45,7 +45,7 @@
     "**/@typescript-eslint/parser": "^4.1.1"
   },
   "scripts": {
-    "start": "yarn init-malloc-contract && craco start",
+    "start": "yarn init-malloc-contract && cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"esnext\" }' craco start",
     "start-contract": "./scripts/start-contract.sh",
     "init-malloc-contract": "cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"commonjs\" }' npx ts-node scripts/init-malloc/create-malloc-master-account.ts",
     "build": "craco build",

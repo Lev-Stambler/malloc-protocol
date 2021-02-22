@@ -107,7 +107,15 @@ impl ProgState {
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        serde_json::from_slice(input).map_err(|e| {
+        let first_0 = input.iter().position(|&r| r == 0);
+
+        let inp_trimmed = if let Some(first_0_ind) = first_0 {
+          msg!("First 0 at {}", first_0_ind);
+          &input[0..first_0_ind]
+        } else {
+            input
+        };
+        serde_json::from_slice(inp_trimmed).map_err(|e| {
             msg!("Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })

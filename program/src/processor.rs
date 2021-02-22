@@ -42,7 +42,7 @@ fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResu
         return Err(ProgramError::InvalidInstructionData);
     }
     let new_state = ProgState::new();
-    new_state.write_new_prog_state(program_data);
+    let _ = new_state.write_new_prog_state(program_data);
     Ok(())
 }
 
@@ -67,31 +67,30 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {
-    msg!("PROCESS: looking at proc instr");
     let account_info_iter = &mut accounts.iter();
     let program_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    msg!("PROCESS: got program_info with account {} and data {:?}", program_info.owner, input);
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
 
+    // msg!("PROCESS: got program main state with data {:?}", &program_info.data.borrow());
     let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
 
     let account_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    if let Some(address) = account_info.signer_key() {
-        if address != account_info.owner {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-    } else {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
+    //if let Some(address) = account_info.signer_key() {
+    //    if address != account_info.owner {
+    //        return Err(ProgramError::MissingRequiredSignature);
+    //    }
+    //} else {
+    //    return Err(ProgramError::MissingRequiredSignature);
+    //}
 
 
 
