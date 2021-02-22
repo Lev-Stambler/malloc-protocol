@@ -16,7 +16,6 @@ import { useMalloc } from "../../contexts/malloc";
 export const RegisterWCallView = () => {
 
   const malloc = useMalloc();
-  const { wallet } = useWallet();
   const registerDummyWcall = useCallback(async () => {
     console.log("register dummy");
     const insts: TransactionInstruction[] = [];
@@ -29,7 +28,7 @@ export const RegisterWCallView = () => {
       },
     });
     await malloc.sendMallocTransaction(insts);
-  }, [wallet, malloc]);
+  }, [malloc]);
 
   return (
     <div className="flexColumn" style={{ flex: 1 }}>

@@ -17,10 +17,13 @@ import {
   WCallChained,
   isWCallChained,
   isWCallSimple,
+  WCallSimpleNode,
+  WCallChainedNode,
   CreateBasketArgs,
   EnactBasketArgs,
   InitMallocArgs,
   Basket,
+  SPLIT_SUM,
   MallocState,
 } from "../models/malloc";
 import { serializePubkey, trimBuffer } from "../utils/utils";
@@ -98,10 +101,12 @@ class Malloc {
       args.wcall.type === WCallTypes.Chained &&
       isWCallChained(args.wcall.data)
     ) {
+      const callData = args.wcall.data as WCallChained;
       wcall = {
-        Chained: ((args.wcall.data as any) as PublicKey[]).map((k) =>
-          serializePubkey(k)
-        ), //.toBase58()),
+        Chained: [
+          serializePubkey(callData.wcall),
+          callData.callback_basket
+        ]
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
@@ -163,6 +168,45 @@ class Malloc {
     this.state = this.parseAccountState(accountInfo.data);
   }
 
+  public checkCallGraph(basket: BasketNode, depth = 4): boolean {
+    // check max recursion depth
+    if (depth === 0) {
+      return false;
+    }
+    // check that splits sum to right number
+    const sum = basket.splits.reduce((sum, split) => sum + split, 0);
+    if (sum !== SPLIT_SUM) {
+      return false
+    }
+    // check basket inputs and outputs
+    return basket.calls.every(call => {
+      if (isWCallChained(call)) {
+        const state = this.state as MallocState;
+        const basketInput = state.baskets[basket.name].input;
+        const callState = state.wrapped_calls[call.name].data as WCallChained;
+        const callOutput = callState.output;
+        const callInput = state.supported_wrapped_call_inputs[call.name];
+        const callbackBasketInput = state
+          .baskets[callState.callback_basket].input;
+
+        return callInput === basketInput
+          && callOutput === callbackBasketInput
+          && this.checkCallGraph(
+            (call as WCallChainedNode).callbackBasket,
+            depth - 1
+          );
+
+      } else {
+        const state = this.state as MallocState;
+        const basketInput = state.baskets[basket.name].input;
+        const callInput = state.supported_wrapped_call_inputs[call.name];
+        return basketInput === callInput;
+      }
+    })
+  }
+
+    
+
   public getCallGraph(basketName: string): BasketNode {
     if (!this.state) {
       throw new Error("state not initialized!");
@@ -176,20 +220,23 @@ class Malloc {
           callName
         ];
         switch (callDescriptor.type) {
-          case "Chained":
+          case "Chained": {
             const callData = callDescriptor.data as WCallChained;
             return {
               name: callName,
               wcall: callData.wcall,
-              callBackBasket: this.getCallGraph(callData.callbackBasket),
+              output: callData.output,
+              callBackBasket: this.getCallGraph(callData.callback_basket),
             };
-          default:
+          }
+          default: {
             // "Simple"
-            const callAddr = callDescriptor.data as PublicKey;
+            const callData = callDescriptor.data as WCallSimple;
             return {
               name: callName,
-              wcall: callAddr,
+              wcall: callData
             };
+          }
         }
       }),
     };
