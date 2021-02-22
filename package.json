@@ -47,7 +47,7 @@
   "scripts": {
     "start": "yarn init-malloc-contract && cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"esnext\" }' craco start",
     "start-contract": "./scripts/start-contract.sh",
-    "init-malloc-contract": "cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"commonjs\" }' npx ts-node scripts/init-malloc/create-malloc-master-account.ts",
+    "init-malloc-contract": "cross-env TS_NODE_COMPILER_OPTIONS='{ \"module\": \"commonjs\", \"resolveJsonModule\": true }' npx ts-node scripts/init-malloc/create-malloc-master-account.ts",
     "build": "craco build",
     "test": "craco test",
     "eject": "react-scripts eject",

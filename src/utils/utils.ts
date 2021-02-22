@@ -252,3 +252,7 @@ export function convert(
 
   return result;
 }
+
+export function trimBuffer(buf: Buffer): Buffer {
+  return buf.slice(0, buf.findIndex(val => val === 0))
+}

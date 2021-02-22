@@ -6,7 +6,7 @@ import {
   Transaction,
   Connection,
 } from "@solana/web3.js";
-import React, { useContext, useEffect, useMemo } from "react";
+import React, {useEffect, useMemo, useContext} from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
 import { useWallet, WalletAdapter } from "../contexts/wallet";
 import {
@@ -23,7 +23,7 @@ import {
   Basket,
   MallocState,
 } from "../models/malloc";
-import { serializePubkey } from "../utils/utils";
+import { serializePubkey, trimBuffer } from "../utils/utils";
 
 const PROGRAM_STATE_ADDR = new PublicKey(
   require("../config/data_account.json").data_account_address
@@ -34,23 +34,22 @@ const PROGRAM_ID = new PublicKey(
 const REFRESH_INTERVAL = 1000;
 const MallocContext = React.createContext<Malloc | null>(null);
 
-export function MallocProvider({ children = null as any }) {
-  const { endpoint } = useConnectionConfig();
-  const connection = useMemo(() => new Connection(endpoint, "recent"), [
-    endpoint,
-  ]);
-  const { wallet } = useWallet();
-  const malloc = useMemo(
-    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet),
-    [connection, wallet]
-  );
+export const useMalloc = () => {
+  const context = useContext(MallocContext);
+  return context as Malloc;
+}
 
+export function MallocProvider({ children = null as any}) {
+  const { endpoint } = useConnectionConfig();
+  const { wallet } = useWallet();
+  const connection = useMemo(() => new Connection(endpoint, "recent"), [ endpoint ]);
+  const malloc = useMemo(() => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet), [connection, wallet])
+  
   useEffect(() => {
     let timer = 0;
 
     const updateMalloc = async () => {
       await malloc.refresh();
-
       timer = window.setTimeout(() => updateMalloc, REFRESH_INTERVAL);
     };
 
@@ -58,8 +57,8 @@ export function MallocProvider({ children = null as any }) {
 
     return () => {
       window.clearTimeout(timer);
-    };
-  }, []);
+    }
+  }, [malloc]);
 
   return (
     <MallocContext.Provider value={malloc}>{children}</MallocContext.Provider>
@@ -84,13 +83,6 @@ class Malloc {
     this.state = null;
     this.connection = connection;
     this.wallet = wallet;
-  }
-
-  public async getState() {
-    const accountInfo = await this.connection.getAccountInfoAndContext(
-      this.progStateAccount
-    );
-    console.log(accountInfo?.value?.data);
   }
 
   public registerCall(
@@ -145,7 +137,9 @@ class Malloc {
   }
 
   private parseAccountState(data: Buffer): MallocState {
-    const bufString = data.toString();
+    const buf = trimBuffer(data)
+    const bufString = buf.toString();
+    console.log(data)
     const state = JSON.parse(bufString);
     console.log(state);
     return state;
@@ -160,10 +154,8 @@ class Malloc {
       };
     }
 
-    const accountInfo = await this.connection.getAccountInfo(
-      this.progStateAccount,
-      "single"
-    );
+    const accountInfo = await this.connection.getAccountInfo(this.progStateAccount);
+    console.log(accountInfo)
     if (!accountInfo) {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
       return;
@@ -220,9 +212,4 @@ class Malloc {
     );
     sendTransaction(this.connection, this.wallet, instructions, []);
   }
-}
-
-export function useMalloc() {
-  const malloc = useContext(MallocContext);
-  return malloc;
 }

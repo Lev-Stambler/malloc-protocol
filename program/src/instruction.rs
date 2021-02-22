@@ -2,7 +2,7 @@
 
 // use crate::error::TokenError;
 use serde::{Deserialize, Serialize};
-use serde_json::to_vec;
+use serde_json::Value;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
@@ -11,7 +11,11 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar,
 };
-use std::{collections::{BTreeMap, HashMap}, convert::TryInto, hash::Hash};
+use std::{
+    collections::{BTreeMap, HashMap},
+    convert::TryInto,
+    hash::Hash,
+};
 use std::{mem::size_of, slice::from_raw_parts_mut};
 
 type WCallAddr = Pubkey;
@@ -27,7 +31,7 @@ pub const MAX_SIGNERS: usize = 11;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum WCall {
     Simple(WCallAddr),
-    Chained(WCallAddr, BasketName)
+    Chained(WCallAddr, BasketName),
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -61,7 +65,7 @@ pub enum ProgInstruction {
     RegisterCall {
         call_input: WCallInputName,
         call_name: WCallName,
-        wcall: WCall
+        wcall: WCall,
     },
     CreateBasket {
         name: BasketName,
@@ -91,7 +95,7 @@ impl ProgState {
         ProgState {
             wrapped_calls: BTreeMap::default(),
             baskets: BTreeMap::default(),
-            supported_wrapped_call_inputs: BTreeMap::default()
+            supported_wrapped_call_inputs: BTreeMap::default(),
         }
     }
 
@@ -110,8 +114,8 @@ impl ProgState {
         let first_0 = input.iter().position(|&r| r == 0);
 
         let inp_trimmed = if let Some(first_0_ind) = first_0 {
-          msg!("First 0 at {}", first_0_ind);
-          &input[0..first_0_ind]
+            msg!("First 0 at {}", first_0_ind);
+            &input[0..first_0_ind]
         } else {
             input
         };

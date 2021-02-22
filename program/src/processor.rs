@@ -1,5 +1,5 @@
 //! Program state processor
-use crate::instruction::{self, ProgInstruction, ProgState, Basket, WCall};
+use crate::instruction::{self, Basket, ProgInstruction, ProgState, WCall};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
@@ -43,13 +43,17 @@ fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResu
     }
     let new_state = ProgState::new();
     let _ = new_state.write_new_prog_state(program_data);
+    msg!("init malloc done!");
     Ok(())
 }
 
 fn process_create_basket(
     prog_state: &mut ProgState,
     program_data: *mut u8,
-    name: String, calls: Vec<String>, splits: Vec<i32>) -> ProgramResult {
+    name: String,
+    calls: Vec<String>,
+    splits: Vec<i32>,
+) -> ProgramResult {
     // TODO: checking
     let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
     prog_state.baskets.insert(name, new_basket);
@@ -74,6 +78,7 @@ pub fn process_instruction(
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
+        msg!("InitMalloc");
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
@@ -91,8 +96,6 @@ pub fn process_instruction(
     //} else {
     //    return Err(ProgramError::MissingRequiredSignature);
     //}
-
-
 
     match instruction {
         ProgInstruction::RegisterCall {
@@ -115,9 +118,7 @@ pub fn process_instruction(
         ProgInstruction::EnactBasket { basket_name } => {
             process_enact_basket(account_info.owner, &prog_state, basket_name)
         }
-        ProgInstruction::InitMalloc {} => {
-            Ok(())
-        }
+        ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {
             name,
             calls,

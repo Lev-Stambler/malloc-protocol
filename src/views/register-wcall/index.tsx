@@ -16,13 +16,10 @@ import { useMalloc } from "../../contexts/malloc";
 export const RegisterWCallView = () => {
 
   const malloc = useMalloc();
+  const { wallet } = useWallet();
   const registerDummyWcall = useCallback(async () => {
-    if (!malloc) {
-      console.error("Malloc uninitialized")
-      return;
-    }
+    console.log("register dummy");
     const insts: TransactionInstruction[] = [];
-    malloc.getState();
     malloc.registerCall(insts, {
       call_input: "Eth",
       call_name: "Yo Mom",
@@ -32,7 +29,7 @@ export const RegisterWCallView = () => {
       },
     });
     await malloc.sendMallocTransaction(insts);
-  }, []);
+  }, [wallet, malloc]);
 
   return (
     <div className="flexColumn" style={{ flex: 1 }}>

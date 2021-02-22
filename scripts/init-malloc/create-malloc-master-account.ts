@@ -12,8 +12,12 @@ import {
 //@ts-ignore
 import bs58 from "bs58";
 import { writeFileSync } from 'fs';
+
+import {programId} from "../../src/config/program_id.json"
+
 const progId = new PublicKey(
-  process.env.PROGRAM_ID || "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
+  programId
+  //process.env.programID || "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
 );
 
 const account = new Account();

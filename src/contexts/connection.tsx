@@ -30,7 +30,7 @@ export const ENDPOINTS = [
   { name: "localnet" as ENV, endpoint: "http://127.0.0.1:8899" },
 ];
 
-const DEFAULT = ENDPOINTS[0].endpoint;
+const DEFAULT = ENDPOINTS[3].endpoint;
 const DEFAULT_SLIPPAGE = 0.25;
 
 interface ConnectionConfig {
