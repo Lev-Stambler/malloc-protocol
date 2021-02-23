@@ -4,11 +4,15 @@ import {
   SystemProgram,
   sendAndConfirmTransaction,
   Transaction,
+  Account,
   Connection,
+  AccountInfo,
 } from "@solana/web3.js";
 import React, { useEffect, useMemo, useContext } from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
 import { useWallet, WalletAdapter } from "../contexts/wallet";
+import {useAccountsContext} from "../contexts/accounts";
+import {createTokenAccount, DEFAULT_TEMP_MEM_SPACE} from "../actions/account";
 import {
   RegisterCallArgs,
   WCallTypes,
@@ -46,12 +50,13 @@ export const useMalloc = () => {
 export function MallocProvider({ children = null as any }) {
   const { endpoint } = useConnectionConfig();
   const { wallet } = useWallet();
+  const accountsContext = useAccountsContext();
   const connection = useMemo(() => new Connection(endpoint, "recent"), [
     endpoint,
   ]);
   const malloc = useMemo(
-    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet),
-    [connection, wallet]
+    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext),
+    [connection, wallet, accountsContext]
   );
 
   useEffect(() => {
@@ -80,17 +85,22 @@ export class Malloc {
   private connection: Connection;
   private wallet: WalletAdapter | undefined;
   private state: MallocState | undefined;
+  private tokenAccounts: any
+  private nativeAccounts: any;
 
   constructor(
     progStateAccount: PublicKey,
     progId: PublicKey,
     connection: Connection,
-    wallet: WalletAdapter | undefined
+    wallet: WalletAdapter | undefined,
+    accountsContext: any,
   ) {
     this.progStateAccount = progStateAccount;
     this.progId = progId;
     this.connection = connection;
     this.wallet = wallet;
+    this.tokenAccounts = accountsContext.userAccounts;
+    this.nativeAccounts = accountsContext.nativeAccounts;
   }
 
   public registerCall(args: RegisterCallArgs) {
@@ -299,10 +309,130 @@ export class Malloc {
       } else {
         const state = this.state as MallocState;
         const basketInput = state.baskets[basket.name].input;
-        const callInput = state.supported_wrapped_call_inputs[call.name];
-        return basketInput === callInput;
+        return basketInput === call.input;
       }
     });
+  }
+
+  private getAssociatedAccountPubkeys(wcallName: string): PublicKey[] {
+    return (this.state as MallocState)
+      .wrapped_calls[wcallName]
+      .data
+      .associated_accounts;
+  }
+
+  private getStateCallFromNode(callNode: WCallChainedNode | WCallSimpleNode): WCallChained | WCallSimple {
+    return (this.state as MallocState)
+      .wrapped_calls[callNode.name].data
+  }
+  
+
+  private getInputMint(inputName: string): PublicKey {
+    return (this.state as MallocState)
+      .supported_wrapped_call_inputs[inputName];
+  }
+
+  private getAccountInfoFromCallGraphHelper(
+    basket: BasketNode,
+    ephemeralAccounts: Account[],
+    initEphemeralAccountInstsructions: TransactionInstruction[],
+    rent: number,
+    accountInfoProms: Promise<AccountInfo<any> | null>[]
+  ) {
+   
+    // basket's input mint
+    accountInfoProms.push(this.connection.getAccountInfo(
+      this.getInputMint(basket.input)
+    ));
+
+    // wcall stuff
+    basket.calls.forEach(call => {
+      // call's program account
+      accountInfoProms.push(this.connection.getAccountInfo(
+        call.wcall
+      ));
+
+      const callData = this.getStateCallFromNode(call);
+
+      // call's associated accounts
+      accountInfoProms.push(...callData
+        .associated_accounts
+        .map(key => this.connection.getAccountInfo(key))
+      )
+
+      // call's output account, if it demands one
+      if (isWCallChained(callData)) {
+        const mint = this.getInputMint((call as WCallChainedNode).output);
+        const signers: Account[] = []
+        const ephemeralAccountPubKey = createTokenAccount(
+          initEphemeralAccountInstsructions,
+          this.wallet?.publicKey as PublicKey,
+          rent,
+          mint,
+          this.wallet?.publicKey as PublicKey,
+          signers
+        )
+
+        if (signers[0].publicKey !== ephemeralAccountPubKey) {
+          throw Error("ephemeralAccount not created properly!")
+        }
+
+        ephemeralAccounts.push(signers[0]);
+
+        accountInfoProms.push(
+          this.connection.getAccountInfo(ephemeralAccountPubKey)
+        );
+
+        this.getAccountInfoFromCallGraphHelper(
+          (call as WCallChainedNode).callbackBasket,
+          ephemeralAccounts,
+          initEphemeralAccountInstsructions,
+          rent,
+          accountInfoProms
+        )
+      }
+    })
+
+  }
+
+  public async setupInvokeCallGraph(
+    basket: BasketNode
+  ): Promise<{
+      accountInfos: AccountInfo<any>[],
+      ephemeralAccounts: Account[],
+      initEphemeralAccountInstsructions: TransactionInstruction[]
+    } | null> {
+    if (!this.checkCallGraph(basket)) {
+      alert("invalid call graph!");
+      return null;
+    }
+
+    const accountInfoProms: Promise<AccountInfo<any> | null>[] = [];
+    const ephemeralAccounts: Account[] = [];
+    const initEphemeralAccountInstsructions: TransactionInstruction[] = [];
+    const ephemeraAccountRent = await this.connection
+      .getMinimumBalanceForRentExemption(DEFAULT_TEMP_MEM_SPACE)
+
+    this.getAccountInfoFromCallGraphHelper(
+      basket,
+      ephemeralAccounts,
+      initEphemeralAccountInstsructions,
+      ephemeraAccountRent,
+      accountInfoProms
+    );
+
+    let accountInfos = await Promise.all(accountInfoProms);
+    const lenBefore = accountInfos.length;
+    accountInfos = accountInfos.filter(val => val !== null);
+    if (lenBefore !== accountInfos.length) {
+      return null
+    }
+
+    return {
+      accountInfos: accountInfos as AccountInfo<any>[],
+      ephemeralAccounts,
+      initEphemeralAccountInstsructions
+    }
   }
 
   public getCallGraph(basketName: string): BasketNode {
@@ -342,6 +472,7 @@ export class Malloc {
       }),
     };
   }
+
 
   createBasket(args: CreateBasketArgs) {
     if (!this.wallet) {
