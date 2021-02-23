@@ -4,95 +4,33 @@ use crate::instruction::{ProgState, WCall};
 use solana_program::{
     entrypoint::ProgramResult, program::invoke_signed, program_error::ProgramError,
     program_option::COption, pubkey::Pubkey,
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction},
+    program::invoke
 };
-use spl_token::instruction::{approve, transfer};
 
-fn transfer_into_basket_approve_for_wcall(
-    tok_id: &Pubkey,
-    source_account: &Pubkey,
-    malloc_prog: &Pubkey,
-    wcall_addr: &Pubkey,
-    amount: u64,
+pub fn enact_wcall_simple(
+  program_id: &Pubkey,
+  inp_accounts: &[AccountInfo]
 ) -> ProgramResult {
-    let malloc_token_account = &Pubkey::create_program_address(&[b"malloc"], malloc_prog)?;
-    let wcall_token_account = &Pubkey::create_program_address(&[b"wcall"], wcall_addr)?;
-    let insn = transfer(
-        tok_id,
-        source_account,
-        malloc_token_account,
-        malloc_token_account,
-        &vec![malloc_token_account],
-        amount,
-    )?;
-
-    invoke_signed(&insn, &[], &[&[b"malloc_token_account"]])?;
-
-    let insn = approve(
-        tok_id,
-        malloc_token_account,
-        wcall_token_account,
-        malloc_token_account,
-        &vec![malloc_token_account],
-        amount,
-    )?;
-    invoke_signed(&insn, &[], &[&[b"malloc_token_account"]])?;
+    // TODO: in the future we could pass data arround as well
+    let data: Vec<u8> = Vec::new();
+    // TODO: ?
+    let account_metas: Vec<AccountMeta> = Vec::new();
+    let inact_inst = Instruction::new(program_id.to_owned(), &data, account_metas);
+    let account_infos: Vec<AccountInfo> = vec![];
+    invoke(&inact_inst, &inp_accounts);
 
     Ok(())
 }
 
-fn enact_wcall(
-    prog_id: &Pubkey,
-    wcall_caller: &Pubkey,
-    prog_state: &ProgState,
-    wcall: WCall,
-    amount: u64,
+pub fn enact_wcall_chained(
+  program_id: &Pubkey,
+  exec_account: AccountInfo,
+  split_account: AccountInfo,
+  associated_accounts: Vec<AccountInfo>,
+  output_account: AccountInfo
 ) -> ProgramResult {
-    match wcall {
-        WCall::Simple {
-            wcall: wcall_addr,
-            input,
-            associated_accounts,
-        } => {
-            let tok_addr = prog_state
-                .supported_wrapped_call_inputs
-                .get(&input)
-                .ok_or(ProgramError::InvalidInstructionData)?;
-
-            transfer_into_basket_approve_for_wcall(
-                tok_addr,
-                wcall_caller,
-                prog_id,
-                &wcall_addr,
-                amount,
-            )?;
-            // TODO: enact the wcall
-        }
-        WCall::Chained {
-            wcall: wcall_addr,
-            callback_basket,
-            input,
-            output,
-            associated_accounts
-        } => {
-            let tok_addr = prog_state
-                .supported_wrapped_call_inputs
-                .get(&input)
-                .ok_or(ProgramError::InvalidInstructionData)?;
-            transfer_into_basket_approve_for_wcall(
-                tok_addr,
-                wcall_caller,
-                prog_id,
-                &wcall_addr,
-                amount,
-            )?;
-            // TODO: enact the wcall
-            let out_tok_addr = prog_state
-                .supported_wrapped_call_inputs
-                .get(&input)
-                .ok_or(ProgramError::InvalidInstructionData)?;
-            // TODO: get amount of out token to put back into chained basket
-            // TODO: put back into basket
-        }
-    };
     Ok(())
 }
+
