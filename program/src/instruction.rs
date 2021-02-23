@@ -31,7 +31,11 @@ pub const MAX_SIGNERS: usize = 11;
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum WCall {
     Simple(WCallAddr),
-    Chained(WCallAddr, BasketName),
+    Chained {
+        wcall: WCallAddr,
+        callback_basket: BasketName,
+        output: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -54,8 +58,8 @@ pub struct ProgState {
     pub wrapped_calls: BTreeMap<WCallName, WCall>,
     /// All the baskets with the basket name as a key
     pub baskets: BTreeMap<BasketName, Basket>,
-    /// All the supported outputs that pipe into the wrapped calls
-    pub supported_wrapped_call_inputs: BTreeMap<WCallInputName, Pubkey>,
+    /// map from WCallName to input it takes
+    pub supported_wrapped_call_inputs: BTreeMap<WCallName, WCallInputName>,
 }
 
 /// Instructions supported by the token program.

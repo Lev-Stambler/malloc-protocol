@@ -17,10 +17,13 @@ import {
   WCallChained,
   isWCallChained,
   isWCallSimple,
+  WCallSimpleNode,
+  WCallChainedNode,
   CreateBasketArgs,
   EnactBasketArgs,
   InitMallocArgs,
   Basket,
+  SPLIT_SUM,
   MallocState,
   NewSupportedWCallInput,
 } from "../models/malloc";
@@ -76,7 +79,7 @@ export class Malloc {
   private progId: PublicKey;
   private connection: Connection;
   private wallet: WalletAdapter | undefined;
-  private state: MallocState | null;
+  private state: MallocState | undefined;
 
   constructor(
     progStateAccount: PublicKey,
@@ -86,7 +89,6 @@ export class Malloc {
   ) {
     this.progStateAccount = progStateAccount;
     this.progId = progId;
-    this.state = null;
     this.connection = connection;
     this.wallet = wallet;
   }
@@ -104,10 +106,12 @@ export class Malloc {
       args.wcall.type === WCallTypes.Chained &&
       isWCallChained(args.wcall.data)
     ) {
+      const callData = args.wcall.data as WCallChained;
       wcall = {
-        Chained: ((args.wcall.data as any) as PublicKey[]).map((k) =>
-          serializePubkey(k)
-        ),
+        Chained: [
+          serializePubkey(callData.wcall),
+          callData.callback_basket
+        ]
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
@@ -198,6 +202,103 @@ export class Malloc {
     this.state = this.parseAccountState(accountInfo.data);
   }
 
+
+  callGraphToTransactionsHelper(basket: BasketNode, transactions: TransactionInstruction[]) {
+    basket.calls.forEach(call => {
+      if (this.state?.wrapped_calls[call.name]) {
+        return
+      }
+      if (isWCallChained(call)) {
+        const callNode = call as WCallChainedNode;
+        this.callGraphToTransactionsHelper(callNode.callbackBasket, transactions);
+        transactions.push(
+          this.registerCall({
+            call_name: callNode.name, 
+            wcall: {
+              type: "Chained",
+              data: {
+                wcall: callNode.wcall,
+                callbackBasket: callNode.callbackBasket.name,
+                output: callNode.output,
+              },
+            }
+          })
+        );
+      } else {
+        const callNode = call as WCallSimpleNode;
+        transactions.push(
+          this.registerCall({
+            call_name: callNode.name, 
+            wcall: {
+              type: "Simple",
+              data: callNode.wcall,
+            }
+          })
+        );
+      }
+    })
+    
+    if (!this.state?.baskets[basket.name]) {
+      transactions.push(
+          this.createBasket({
+          name: basket.name,
+          calls: basket.calls.map(call => call.name),
+          splits: basket.splits,
+        })
+      )
+    }
+  }
+
+  public callGraphToTransactions(basket: BasketNode): TransactionInstruction[] {
+    if (!this.state) {
+      throw new Error("state not initialized!")
+    }
+    if (!this.checkCallGraph(basket)) {
+      console.log("invalid call graph!");
+      return [];
+    }
+
+    let transactions: TransactionInstruction[] = []
+    this.callGraphToTransactionsHelper(basket, transactions);
+    console.log("transactions:", transactions);
+    return transactions;
+  }
+
+  public checkCallGraph(basket: BasketNode, depth = 4): boolean {
+    // check max recursion depth
+    if (depth === 0) {
+      return false;
+    }
+    // check that splits sum to right number
+    const sum = basket.splits.reduce((sum, split) => sum + split, 0);
+    if (sum !== SPLIT_SUM) {
+      return false
+    }
+    // check basket inputs and outputs
+    return basket.calls.every(call => {
+      if (isWCallChained(call)) {
+        const callData = call as WCallChainedNode;
+        const basketInput = this.state?.baskets[basket.name].input;
+        const callbackBasketInput = callData.callbackBasket.input;
+
+        return callData.input === basketInput
+          && callData.output === callbackBasketInput
+          && this.checkCallGraph(
+            (call as WCallChainedNode).callbackBasket,
+            depth - 1
+          );
+
+      } else {
+        const state = this.state as MallocState;
+        const basketInput = state.baskets[basket.name].input;
+        const callInput = state.supported_wrapped_call_inputs[call.name];
+        return basketInput === callInput;
+      }
+    })
+  }
+
+    
+
   public getCallGraph(basketName: string): BasketNode {
     if (!this.state) {
       throw new Error("state not initialized!");
@@ -206,25 +307,31 @@ export class Malloc {
     return {
       name: basketName,
       splits: basket.splits,
+      input: basket.input,
       calls: basket.calls.map((callName) => {
         const callDescriptor = (this.state as MallocState).wrapped_calls[
           callName
         ];
         switch (callDescriptor.type) {
-          case "Chained":
+          case "Chained": {
             const callData = callDescriptor.data as WCallChained;
             return {
               name: callName,
               wcall: callData.wcall,
-              callBackBasket: this.getCallGraph(callData.callbackBasket),
+              input: (this.state as MallocState).supported_wrapped_call_inputs[callName],
+              output: callData.output,
+              callBackBasket: this.getCallGraph(callData.callback_basket),
             };
-          default:
+          }
+          default: {
             // "Simple"
-            const callAddr = callDescriptor.data as PublicKey;
+            const callData = callDescriptor.data as WCallSimple;
             return {
               name: callName,
-              wcall: callAddr,
-            };
+              input: (this.state as MallocState).supported_wrapped_call_inputs[callName],
+              wcall: callData,
+            }
+          }
         }
       }),
     };
@@ -247,6 +354,7 @@ export class Malloc {
       "Sending transaction with instruction data",
       instructions.map((inst) => new TextDecoder("utf-8").decode(inst.data))
     );
-    sendTransaction(this.connection, this.wallet, instructions, []);
+    await sendTransaction(this.connection, this.wallet, instructions, []);
+    await this.refresh();
   }
 }
