@@ -25,7 +25,7 @@ fn transfer_into_basket_approve_for_wcall(
         amount,
     )?;
 
-    invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
+//    invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
 
     let insn = approve(
         tok_id,
@@ -35,7 +35,7 @@ fn transfer_into_basket_approve_for_wcall(
         &vec![malloc_token_account],
         amount,
     )?;
-    invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
+ //   invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
 
     Ok(())
 }
@@ -51,6 +51,7 @@ fn enact_wcall(
         WCall::Simple {
             wcall: wcall_addr,
             input,
+            associated_accounts,
         } => {
             let tok_addr = prog_state
                 .supported_wrapped_call_inputs
@@ -71,6 +72,7 @@ fn enact_wcall(
             callback_basket,
             input,
             output,
+            associated_accounts
         } => {
             let tok_addr = prog_state
                 .supported_wrapped_call_inputs

@@ -32,13 +32,15 @@ pub const MAX_SIGNERS: usize = 11;
 pub enum WCall {
     Simple {
         wcall: WCallAddr,
-        input: WCallInputName
+        input: WCallInputName,
+        associated_accounts: Vec<Pubkey>,
     },
     Chained {
         wcall: WCallAddr,
         callback_basket: BasketName,
         input: WCallInputName,
         output: WCallInputName,
+        associated_accounts: Vec<Pubkey>,
     },
 }
 
@@ -79,6 +81,9 @@ pub enum ProgInstruction {
         calls: Vec<WCallName>,
         splits: Vec<i32>,
     },
+    ///
+    /// Accounts expected:
+    /// program_info, account_info
     EnactBasket {
         basket_name: BasketName,
     },

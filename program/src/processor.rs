@@ -20,7 +20,7 @@ fn process_register_call(
     // TODO: if it's not in there, do we want the user to allow for adding this?
     
     let call_input = match &wcall {
-        WCall::Simple { wcall, input } => input,
+        WCall::Simple { wcall, input, .. } => input,
         WCall::Chained { input, .. } => input
     };
     if let None = prog_state.supported_wrapped_call_inputs.get(call_input) {
