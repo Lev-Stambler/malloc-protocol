@@ -1,5 +1,5 @@
 [package]
-name = "spl-memo"
+name = "malloc"
 version = "3.0.0"
 description = "Solana Program Library Memo"
 authors = ["Solana Maintainers <maintainers@solana.foundation>"]
