@@ -25,7 +25,7 @@ fn transfer_into_basket_approve_for_wcall(
         amount,
     )?;
 
-//    invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
+    invoke_signed(&insn, &[], &[&[b"malloc_token_account"]])?;
 
     let insn = approve(
         tok_id,
@@ -35,7 +35,7 @@ fn transfer_into_basket_approve_for_wcall(
         &vec![malloc_token_account],
         amount,
     )?;
- //   invoke_signed(&insn, &[tok_id], &[&[b"malloc_token_account"]])?;
+    invoke_signed(&insn, &[], &[&[b"malloc_token_account"]])?;
 
     Ok(())
 }
