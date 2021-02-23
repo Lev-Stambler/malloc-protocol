@@ -1,3 +1,4 @@
+/// THIS IS DEPRECIATED
 // TODO: change over to Rust for functional test
 //@ts-ignore
 import {
@@ -108,7 +109,7 @@ async function initMallocData() {
 }
 
 async function initAccounts(): Promise<Connection> {
-  let connection = new Connection("http://127.0.0.1:8899", "singleGossip");
+  connection = new Connection("http://127.0.0.1:8899", "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
@@ -136,10 +137,10 @@ describe("Run a standard set of Malloc tests", async function () {
     const insts: TransactionInstruction[] = [];
     addGeneralTransaction(insts, {
       NewSupportedWCallInput: {
-        input_name: "Wrapped SOL",
+        input_name: "Wrapped Eth",
         input_address: [
           ...new PublicKey(
-            "So11111111111111111111111111111111111111112"
+            "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
           ).toBuffer(),
         ],
       },
