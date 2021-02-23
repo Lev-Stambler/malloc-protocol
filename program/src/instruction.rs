@@ -75,6 +75,10 @@ pub enum ProgInstruction {
     EnactBasket {
         basket_name: BasketName,
     },
+    NewSupportedWCallInput {
+        input_name: String,
+        input_address: Pubkey
+    },
     InitMalloc {},
 }
 
@@ -120,7 +124,7 @@ impl ProgState {
             input
         };
         serde_json::from_slice(inp_trimmed).map_err(|e| {
-            msg!("Error parsing input data {:?}", e);
+            msg!("Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }
