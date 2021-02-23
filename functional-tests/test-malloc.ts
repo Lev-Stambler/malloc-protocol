@@ -1,5 +1,3 @@
-/// THIS IS DEPRECIATED
-// TODO: change over to Rust for functional test
 //@ts-ignore
 import {
   Account,
@@ -13,9 +11,7 @@ import {
 //@ts-ignore
 import bs58 from "bs58";
 import { assert } from "chai";
-const progId = new PublicKey(
-  "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
-);
+const progId = new PublicKey("25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr");
 import "mocha";
 
 const account = new Account();
@@ -61,14 +57,14 @@ function addGeneralTransaction(
       keys: [
         {
           isWritable: true,
-          pubkey: account.publicKey,
-          isSigner: true,
+          pubkey: data_account.publicKey,
+          isSigner: false,
         },
         {
           isWritable: true,
-          pubkey: data_account.publicKey,
-          isSigner: false,
-        }, 
+          pubkey: account.publicKey,
+          isSigner: true,
+        },
       ],
       programId: progId,
       data: Buffer.from(JSON.stringify(data)),
@@ -80,8 +76,11 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
   try {
     const tx = new Transaction();
     instructions.forEach((inst) => {
-      console.log("Adding instruction with data", new TextDecoder('utf-8').decode(inst.data))
-      tx.add(inst)
+      console.log(
+        "Adding instruction with data",
+        new TextDecoder("utf-8").decode(inst.data)
+      );
+      tx.add(inst);
     });
     await sendAndConfirmTransaction(connection, tx, [account], {
       skipPreflight: true,
@@ -127,7 +126,7 @@ describe("Run a standard set of Malloc tests", async function () {
   });
   it("fails if already registered", async () => {
     try {
-      await initDataAccount();
+      await initMallocData();
       assert(false);
     } catch (e) {
       assert(true);
@@ -145,8 +144,72 @@ describe("Run a standard set of Malloc tests", async function () {
         ],
       },
     });
+    addGeneralTransaction(insts, {
+      RegisterCall: {
+        call_input: "Wrapped Eth",
+        call_name: "Just buy some more Eth",
+        // dummy public key
+        wcall: {
+          Simple: [
+            ...new PublicKey(
+              "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
+            ).toBuffer(),
+          ],
+        },
+      },
+    });
+    addGeneralTransaction(insts, {
+      RegisterCall: {
+        call_input: "Wrapped Eth",
+        call_name:
+          "Just buy some more Eth part 2, return of the electric bogoloo",
+        // dummy public key
+        wcall: {
+          Simple: [
+            ...new PublicKey(
+              "3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
+            ).toBuffer(),
+          ],
+        },
+      },
+    });
+    addGeneralTransaction(insts, {
+      CreateBasket: {
+        name: "Just buy just buy eth",
+        calls: [
+          "Just buy some more Eth part 2, return of the electric bogoloo",
+          "Just buy some more Eth",
+        ],
+        splits: [500, 500],
+      },
+    });
 
     // Execute the instructions
     await sendGeneralInstruction(insts);
   });
 });
+// pub enum WCall {
+//   Simple(WCallAddr),
+//   Chained(WCallAddr, BasketName),
+// }
+
+// pub enum ProgInstruction {
+//   RegisterCall {
+//       call_input: WCallInputName,
+//       call_name: WCallName,
+//       wcall: WCall,
+//   },
+//   CreateBasket {
+//       name: BasketName,
+//       calls: Vec<WCallName>,
+//       splits: Vec<i32>,
+//   },
+//   EnactBasket {
+//       basket_name: BasketName,
+//   },
+//   NewSupportedWCallInput {
+//       input_name: String,
+//       input_address: Pubkey
+//   },
+//   InitMalloc {},
+// }

@@ -35,7 +35,6 @@ fn process_new_supported_wrapped_call_input(
     input_name: String,
     input_address: Pubkey
 ) -> ProgramResult {
-   
   if let None = prog_state.supported_wrapped_call_inputs.get(&input_name) {
     prog_state.supported_wrapped_call_inputs.insert(input_name, input_address);
   } else {
@@ -101,7 +100,6 @@ pub fn process_instruction(
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
 
-    // msg!("PROCESS: got program main state with data {:?}", &program_info.data.borrow());
     let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
 
     let account_info = account_info_iter

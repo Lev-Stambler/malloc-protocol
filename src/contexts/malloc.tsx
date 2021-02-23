@@ -71,7 +71,7 @@ export function MallocProvider({ children = null as any }) {
   );
 }
 
-class Malloc {
+export class Malloc {
   private progStateAccount: PublicKey;
   private progId: PublicKey;
   private connection: Connection;

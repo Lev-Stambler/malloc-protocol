@@ -118,7 +118,6 @@ impl ProgState {
         let first_0 = input.iter().position(|&r| r == 0);
 
         let inp_trimmed = if let Some(first_0_ind) = first_0 {
-            msg!("First 0 at {}", first_0_ind);
             &input[0..first_0_ind]
         } else {
             input
