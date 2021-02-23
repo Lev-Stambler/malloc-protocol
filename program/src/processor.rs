@@ -10,7 +10,6 @@ fn process_register_call(
     sender: &Pubkey,
     prog_state: &mut ProgState,
     program_data: *mut u8,
-    call_input: String,
     name: String,
     wcall: WCall,
 ) -> ProgramResult {
@@ -20,7 +19,11 @@ fn process_register_call(
     }
     // TODO: if it's not in there, do we want the user to allow for adding this?
     
-    if let None = prog_state.supported_wrapped_call_inputs.get(&call_input) {
+    let call_input = match &wcall {
+        WCall::Simple { wcall, input } => input,
+        WCall::Chained { input, .. } => input
+    };
+    if let None = prog_state.supported_wrapped_call_inputs.get(call_input) {
         msg!("The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -120,9 +123,8 @@ pub fn process_instruction(
 
     match instruction {
         ProgInstruction::RegisterCall {
-            call_input,
             call_name: name,
-            wcall,
+            wcall_enum: wcall,
         } => {
             // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
@@ -131,7 +133,6 @@ pub fn process_instruction(
                 account_info.owner,
                 &mut prog_state,
                 prog_data_ptr,
-                call_input,
                 name,
                 wcall,
             )

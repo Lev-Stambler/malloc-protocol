@@ -93,57 +93,55 @@ export class Malloc {
     this.wallet = wallet;
   }
 
-  public registerCall(
-    instructions: TransactionInstruction[],
-    args: RegisterCallArgs
-  ) {
+  public registerCall(args: RegisterCallArgs) {
     if (!this.wallet) {
       alert("please connect your wallet first");
-      return;
+      throw "wallet not connected";
     }
     let wcall: any;
     if (
       args.wcall.type === WCallTypes.Chained &&
       isWCallChained(args.wcall.data)
     ) {
-      const callData = args.wcall.data as WCallChained;
       wcall = {
-        Chained: [
-          serializePubkey(callData.wcall),
-          callData.callback_basket
-        ]
+        Chained: {
+          ...args.wcall.data,
+          wcall: serializePubkey(args.wcall.data.wcall as PublicKey),
+        },
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
       isWCallSimple(args.wcall.data)
     ) {
-      wcall = { Simple: serializePubkey(args.wcall.data as PublicKey) };
+      wcall = {
+        Chained: {
+          ...args.wcall.data,
+          wcall: serializePubkey(args.wcall.data.wcall as PublicKey),
+        },
+      };
     } else {
       throw "Invalid WCall type and args";
     }
     const sending_args = {
-      call_input: args.call_input,
       call_name: args.call_name,
-      wcall,
+      wcall_enum: wcall,
     };
-    instructions.push(
-      new TransactionInstruction({
-        keys: [
-          {
-            isWritable: false,
-            pubkey: this.wallet.publicKey as PublicKey,
-            isSigner: true,
-          },
-	  {
-            isWritable: true,
-            pubkey: this.progStateAccount,
-            isSigner: false,
-          }
-        ],
-        programId: this.progId,
-        data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
-      })
-    );
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: false,
+          pubkey: this.wallet.publicKey as PublicKey,
+          isSigner: true,
+        },
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+      ],
+      programId: this.progId,
+      data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
+    });
   }
 
   public registerNewSupportedWCall(
@@ -202,63 +200,72 @@ export class Malloc {
     this.state = this.parseAccountState(accountInfo.data);
   }
 
-
-  callGraphToTransactionsHelper(basket: BasketNode, transactions: TransactionInstruction[]) {
-    basket.calls.forEach(call => {
+  callGraphToTransactionsHelper(
+    basket: BasketNode,
+    transactions: TransactionInstruction[]
+  ) {
+    basket.calls.forEach((call) => {
       if (this.state?.wrapped_calls[call.name]) {
-        return
+        return;
       }
       if (isWCallChained(call)) {
         const callNode = call as WCallChainedNode;
-        this.callGraphToTransactionsHelper(callNode.callbackBasket, transactions);
+        this.callGraphToTransactionsHelper(
+          callNode.callbackBasket,
+          transactions
+        );
         transactions.push(
           this.registerCall({
-            call_name: callNode.name, 
+            call_name: callNode.name,
             wcall: {
-              type: "Chained",
+              type: WCallTypes.Chained,
               data: {
                 wcall: callNode.wcall,
-                callbackBasket: callNode.callbackBasket.name,
+                callback_basket: callNode.callbackBasket.name,
                 output: callNode.output,
+                input: callNode.input,
               },
-            }
+            },
           })
         );
       } else {
         const callNode = call as WCallSimpleNode;
         transactions.push(
           this.registerCall({
-            call_name: callNode.name, 
+            call_name: callNode.name,
             wcall: {
-              type: "Simple",
-              data: callNode.wcall,
-            }
+              type: WCallTypes.Simple,
+              data: {
+                wcall: callNode.wcall,
+                input: callNode.input,
+              },
+            },
           })
         );
       }
-    })
-    
+    });
+
     if (!this.state?.baskets[basket.name]) {
       transactions.push(
-          this.createBasket({
+        this.createBasket({
           name: basket.name,
-          calls: basket.calls.map(call => call.name),
+          calls: basket.calls.map((call) => call.name),
           splits: basket.splits,
         })
-      )
+      );
     }
   }
 
   public callGraphToTransactions(basket: BasketNode): TransactionInstruction[] {
     if (!this.state) {
-      throw new Error("state not initialized!")
+      throw new Error("state not initialized!");
     }
     if (!this.checkCallGraph(basket)) {
       console.log("invalid call graph!");
       return [];
     }
 
-    let transactions: TransactionInstruction[] = []
+    let transactions: TransactionInstruction[] = [];
     this.callGraphToTransactionsHelper(basket, transactions);
     console.log("transactions:", transactions);
     return transactions;
@@ -272,32 +279,31 @@ export class Malloc {
     // check that splits sum to right number
     const sum = basket.splits.reduce((sum, split) => sum + split, 0);
     if (sum !== SPLIT_SUM) {
-      return false
+      return false;
     }
     // check basket inputs and outputs
-    return basket.calls.every(call => {
+    return basket.calls.every((call) => {
       if (isWCallChained(call)) {
         const callData = call as WCallChainedNode;
         const basketInput = this.state?.baskets[basket.name].input;
         const callbackBasketInput = callData.callbackBasket.input;
 
-        return callData.input === basketInput
-          && callData.output === callbackBasketInput
-          && this.checkCallGraph(
+        return (
+          callData.input === basketInput &&
+          callData.output === callbackBasketInput &&
+          this.checkCallGraph(
             (call as WCallChainedNode).callbackBasket,
             depth - 1
-          );
-
+          )
+        );
       } else {
         const state = this.state as MallocState;
         const basketInput = state.baskets[basket.name].input;
         const callInput = state.supported_wrapped_call_inputs[call.name];
         return basketInput === callInput;
       }
-    })
+    });
   }
-
-    
 
   public getCallGraph(basketName: string): BasketNode {
     if (!this.state) {
@@ -313,24 +319,24 @@ export class Malloc {
           callName
         ];
         switch (callDescriptor.type) {
-          case "Chained": {
+          case WCallTypes.Chained: {
             const callData = callDescriptor.data as WCallChained;
             return {
               name: callName,
               wcall: callData.wcall,
-              input: (this.state as MallocState).supported_wrapped_call_inputs[callName],
+              input: callData.input,
               output: callData.output,
-              callBackBasket: this.getCallGraph(callData.callback_basket),
-            };
+              callbackBasket: this.getCallGraph(callData.callback_basket),
+            } as WCallChainedNode;
           }
           default: {
             // "Simple"
             const callData = callDescriptor.data as WCallSimple;
             return {
               name: callName,
-              input: (this.state as MallocState).supported_wrapped_call_inputs[callName],
-              wcall: callData,
-            }
+              input: callData.input,
+              wcall: callData.wcall,
+            } as WCallSimpleNode;
           }
         }
       }),
@@ -338,7 +344,26 @@ export class Malloc {
   }
 
   createBasket(args: CreateBasketArgs) {
-    // TODO: implement
+    if (!this.wallet) {
+      alert("please connect your wallet first");
+      throw "wallet not connected";
+    }
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+        {
+          isWritable: false,
+          pubkey: this.wallet.publicKey as PublicKey,
+          isSigner: true,
+        },
+      ],
+      programId: this.progId,
+      data: Buffer.from(JSON.stringify({ createBasket: args })),
+    });
   }
 
   enactBasket(args: EnactBasketArgs) {

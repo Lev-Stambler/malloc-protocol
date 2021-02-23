@@ -45,7 +45,10 @@ export enum WCallTypes {
   Chained = "Chained",
 }
 
-export type WCallSimple = PublicKey;
+export interface WCallSimple {
+  wcall: PublicKey;
+  input: string;
+}
 
 export function isWCallSimple(v: any) {
   return v instanceof PublicKey;
@@ -58,6 +61,7 @@ export function isWCallSimple(v: any) {
 export interface WCallChained {
   wcall: PublicKey;
   callback_basket: string;
+  input: string;
   output: string;
 }
 
@@ -83,7 +87,6 @@ export interface MallocState {
 }
 
 export interface RegisterCallArgs {
-  call_input: String;
   call_name: String;
   wcall: {
     type: WCallTypes;

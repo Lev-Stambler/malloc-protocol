@@ -20,7 +20,7 @@ num-traits = "0.2.14"
 serde = "1.0.123"
 serde_json = "1.0.62"
 solana-program = "1.5.6"
-spl-token = "3.1.0"
+spl-token = { version = "3.1.0", features = ["no-entrypoint"] }
 thiserror = "1.0.23"
 
 [dev-dependencies]

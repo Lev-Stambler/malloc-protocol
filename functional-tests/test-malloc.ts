@@ -11,9 +11,10 @@ import {
 //@ts-ignore
 import bs58 from "bs58";
 import { assert } from "chai";
-const progId = new PublicKey("25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr");
+const progKey = require('../src/config/program_id.json').programId
+const progId = new PublicKey(progKey);
 import "mocha";
-import { trimBuffer } from "../src/utils/utils";
+import { serializePubkey, trimBuffer } from "../src/utils/utils";
 import { MallocState } from "../src/models/malloc";
 
 const account = new Account();
@@ -29,14 +30,12 @@ function parseAccountState(data: Buffer): MallocState {
 }
 
 async function getDataParsed() {
-  const accountInfo = await connection.getAccountInfo(
-    data_account.publicKey
-  );
+  const accountInfo = await connection.getAccountInfo(data_account.publicKey);
   if (!accountInfo?.data) {
-    assert(false, "error getting data account info")
-    return
+    assert(false, "error getting data account info");
+    return;
   }
-  return parseAccountState(accountInfo.data)
+  return parseAccountState(accountInfo.data);
 }
 
 async function initDataAccount() {
@@ -122,6 +121,12 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
   }
 }
 
+async function doGeneralInstrSingleton(data: any) {
+  const insts: TransactionInstruction[] = []
+  addGeneralTransaction(insts, data)
+  await sendGeneralInstruction(insts)
+}
+
 async function initMallocData() {
   const insts: TransactionInstruction[] = [];
   addGeneralTransaction(insts, { InitMalloc: {} });
@@ -154,8 +159,7 @@ describe("Run a standard set of Malloc tests", async function () {
     }
   });
   it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
-    const insts: TransactionInstruction[] = [];
-    addGeneralTransaction(insts, {
+    await doGeneralInstrSingleton({
       NewSupportedWCallInput: {
         input_name: "Wrapped Eth",
         input_address: [
@@ -165,36 +169,36 @@ describe("Run a standard set of Malloc tests", async function () {
         ],
       },
     });
-    addGeneralTransaction(insts, {
+    await doGeneralInstrSingleton({
       RegisterCall: {
-        call_input: "Wrapped Eth",
         call_name: "Just buy some more Eth",
         // dummy public key
-        wcall: {
-          Simple: [
-            ...new PublicKey(
-              "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
-            ).toBuffer(),
-          ],
+        wcall_enum: {
+          Simple: {
+            wcall: serializePubkey(
+              new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
+            ),
+            input: "Wrapped Eth",
+          },
         },
       },
     });
-    addGeneralTransaction(insts, {
+    await doGeneralInstrSingleton({
       RegisterCall: {
-        call_input: "Wrapped Eth",
         call_name:
           "Just buy some more Eth part 2, return of the electric bogoloo",
         // dummy public key
-        wcall: {
-          Simple: [
-            ...new PublicKey(
-              "3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
-            ).toBuffer(),
-          ],
+        wcall_enum: {
+          Simple: {
+            wcall: serializePubkey(
+              new PublicKey("3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
+            ),
+            input: "Wrapped Eth",
+          },
         },
       },
     });
-    addGeneralTransaction(insts, {
+    await doGeneralInstrSingleton({
       CreateBasket: {
         name: "Just buy just buy eth",
         calls: [
@@ -205,7 +209,7 @@ describe("Run a standard set of Malloc tests", async function () {
       },
     });
 
-    addGeneralTransaction(insts, {
+    await doGeneralInstrSingleton({
       CreateBasket: {
         name: "Just buy just buy eth",
         calls: [
@@ -215,13 +219,12 @@ describe("Run a standard set of Malloc tests", async function () {
         splits: [500, 500],
       },
     });
-    // Execute the instructions
-    await sendGeneralInstruction(insts);
-    const data = await getDataParsed() as MallocState
-    console.log(data.baskets)
-    assert(data.wrapped_calls["Just buy some more Eth"])
-    assert(data.supported_wrapped_call_inputs["Wrapped Eth"])
-    assert(data.baskets["Just buy just buy eth"])
+
+    const data = (await getDataParsed()) as MallocState;
+    console.log(data.baskets);
+    assert(data.wrapped_calls["Just buy some more Eth"]);
+    assert(data.supported_wrapped_call_inputs["Wrapped Eth"]);
+    assert(data.baskets["Just buy just buy eth"]);
   });
 });
 // pub enum WCall {

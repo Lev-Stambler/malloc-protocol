@@ -71,9 +71,8 @@ pub struct ProgState {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ProgInstruction {
     RegisterCall {
-        call_input: WCallInputName,
         call_name: WCallName,
-        wcall: WCall,
+        wcall_enum: WCall,
     },
     CreateBasket {
         name: BasketName,

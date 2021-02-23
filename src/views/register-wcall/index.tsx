@@ -19,14 +19,16 @@ export const RegisterWCallView = () => {
   const registerDummyWcall = useCallback(async () => {
     console.log("register dummy");
     const insts: TransactionInstruction[] = [];
-    malloc.registerCall(insts, {
-      call_input: "Eth",
+    insts.push(malloc.registerCall({
       call_name: "Yo Mom",
       wcall: {
         type: WCallTypes.Simple,
-        data: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
+        data: {
+          wcall: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
+          input: "Wrapped Eth"
+        }
       },
-    });
+    }));
     await malloc.sendMallocTransaction(insts);
   }, [malloc]);
 
