@@ -13,10 +13,31 @@ import bs58 from "bs58";
 import { assert } from "chai";
 const progId = new PublicKey("25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr");
 import "mocha";
+import { trimBuffer } from "../src/utils/utils";
+import { MallocState } from "../src/models/malloc";
 
 const account = new Account();
 const data_account = new Account();
 let connection: Connection;
+
+function parseAccountState(data: Buffer): MallocState {
+  const buf = trimBuffer(data);
+  const bufString = buf.toString();
+  const state = JSON.parse(bufString);
+  console.log(state);
+  return state;
+}
+
+async function getDataParsed() {
+  const accountInfo = await connection.getAccountInfo(
+    data_account.publicKey
+  );
+  if (!accountInfo?.data) {
+    assert(false, "error getting data account info")
+    return
+  }
+  return parseAccountState(accountInfo.data)
+}
 
 async function initDataAccount() {
   // const instructionInit = new TransactionInstruction({
@@ -184,8 +205,23 @@ describe("Run a standard set of Malloc tests", async function () {
       },
     });
 
+    addGeneralTransaction(insts, {
+      CreateBasket: {
+        name: "Just buy just buy eth",
+        calls: [
+          "Just buy some more Eth part 2, return of the electric bogoloo",
+          "Just buy some more Eth",
+        ],
+        splits: [500, 500],
+      },
+    });
     // Execute the instructions
     await sendGeneralInstruction(insts);
+    const data = await getDataParsed() as MallocState
+    console.log(data.baskets)
+    assert(data.wrapped_calls["Just buy some more Eth"])
+    assert(data.supported_wrapped_call_inputs["Wrapped Eth"])
+    assert(data.baskets["Just buy just buy eth"])
   });
 });
 // pub enum WCall {

@@ -74,6 +74,7 @@ fn process_create_basket(
     // TODO: checking
     let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
     prog_state.baskets.insert(name, new_basket);
+    let _ = prog_state.write_new_prog_state(program_data)?;
     Ok(())
 }
 
