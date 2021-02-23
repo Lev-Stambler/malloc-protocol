@@ -13,18 +13,15 @@ import {
 import bs58 from "bs58";
 import { assert } from "chai";
 const progId = new PublicKey(
-  process.env.PROGRAM_ID || "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
+  "25wixzoUEfkg5hQTUU9PBZJRJHF2duxZtxMDPkwAsksr"
 );
 import "mocha";
 
 const account = new Account();
 const data_account = new Account();
+let connection: Connection;
 
-async function initDataAccount(
-  connection: Connection,
-  account: Account,
-  data_account: Account
-) {
+async function initDataAccount() {
   // const instructionInit = new TransactionInstruction({
   //   keys: [],
   //   programId: new PublicKey(progId),
@@ -54,28 +51,41 @@ async function initDataAccount(
   }
 }
 
-async function initMallocData(connection: Connection, data_account: Account) {
-  const instructionInit = new TransactionInstruction({
-    keys: [
-      {
-        isWritable: true,
-        pubkey: data_account.publicKey,
-        isSigner: true,
-      },
-    ],
-    programId: progId,
-    data: Buffer.from(JSON.stringify({ InitMalloc: {} })),
-  });
+function addGeneralTransaction(
+  instructions: TransactionInstruction[],
+  data: any
+) {
+  instructions.push(
+    new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: account.publicKey,
+          isSigner: true,
+        },
+        {
+          isWritable: true,
+          pubkey: data_account.publicKey,
+          isSigner: false,
+        }, 
+      ],
+      programId: progId,
+      data: Buffer.from(JSON.stringify(data)),
+    })
+  );
+}
+
+async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
   try {
-    await sendAndConfirmTransaction(
-      connection,
-      new Transaction().add(instructionInit),
-      [account, data_account],
-      {
-        skipPreflight: true,
-        commitment: "singleGossip",
-      }
-    );
+    const tx = new Transaction();
+    instructions.forEach((inst) => {
+      console.log("Adding instruction with data", new TextDecoder('utf-8').decode(inst.data))
+      tx.add(inst)
+    });
+    await sendAndConfirmTransaction(connection, tx, [account], {
+      skipPreflight: true,
+      commitment: "singleGossip",
+    });
     console.log("Initialized the data in data_account");
     const data_account_info = await connection.getAccountInfo(
       data_account.publicKey
@@ -91,31 +101,51 @@ async function initMallocData(connection: Connection, data_account: Account) {
   }
 }
 
+async function initMallocData() {
+  const insts: TransactionInstruction[] = [];
+  addGeneralTransaction(insts, { InitMalloc: {} });
+  await sendGeneralInstruction(insts);
+}
+
 async function initAccounts(): Promise<Connection> {
   let connection = new Connection("http://127.0.0.1:8899", "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
   console.log("airdrop done");
-  initDataAccount(connection, account, data_account);
+  initDataAccount();
   return connection;
 }
 
 describe("Run a standard set of Malloc tests", async function () {
-  let conn: Connection;
   this.timeout(20000);
   before(async function () {
     this.timeout(20000);
-    conn = await initAccounts();
-    await initMallocData(conn, data_account);
+    connection = await initAccounts();
+    await initMallocData();
   });
   it("fails if already registered", async () => {
     try {
-      await initDataAccount(conn, account, data_account);
+      await initDataAccount();
       assert(false);
     } catch (e) {
       assert(true);
     }
   });
-  xit("register a few new WCalls, then create a basket, then execute that basket", async () => {});
+  it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
+    const insts: TransactionInstruction[] = [];
+    addGeneralTransaction(insts, {
+      NewSupportedWCallInput: {
+        input_name: "Wrapped SOL",
+        input_address: [
+          ...new PublicKey(
+            "So11111111111111111111111111111111111111112"
+          ).toBuffer(),
+        ],
+      },
+    });
+
+    // Execute the instructions
+    await sendGeneralInstruction(insts);
+  });
 });

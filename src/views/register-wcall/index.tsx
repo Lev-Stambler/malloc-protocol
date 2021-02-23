@@ -9,14 +9,15 @@ import {
 import { notify } from "../../utils/notifications";
 import { ConnectButton } from "./../../components/ConnectButton";
 import { LABELS } from "../../constants";
-import { Button } from "antd";
+import { Button, Input } from "antd";
 import { WCallTypes } from "../../models/malloc";
 import { useMalloc } from "../../contexts/malloc";
+import Grid from "antd/lib/card/Grid";
 
 export const RegisterWCallView = () => {
-
   const malloc = useMalloc();
   const { wallet } = useWallet();
+
   const registerDummyWcall = useCallback(async () => {
     console.log("register dummy");
     const insts: TransactionInstruction[] = [];
@@ -35,7 +36,7 @@ export const RegisterWCallView = () => {
     <div className="flexColumn" style={{ flex: 1 }}>
       <div>
         <Button type="primary" onClick={registerDummyWcall}>
-          Register Dummy
+          Register a Dummy
         </Button>
       </div>
     </div>

@@ -19,6 +19,7 @@ fn process_register_call(
         return Err(ProgramError::InvalidInstructionData);
     }
     // TODO: if it's not in there, do we want the user to allow for adding this?
+    
     if let None = prog_state.supported_wrapped_call_inputs.get(&call_input) {
         msg!("The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
@@ -26,6 +27,23 @@ fn process_register_call(
     let _ = prog_state.wrapped_calls.insert(name, wcall);
     prog_state.write_new_prog_state(program_data)?;
     Ok(())
+}
+
+fn process_new_supported_wrapped_call_input(
+    prog_state: &mut ProgState,
+    program_data: *mut u8,
+    input_name: String,
+    input_address: Pubkey
+) -> ProgramResult {
+   
+  if let None = prog_state.supported_wrapped_call_inputs.get(&input_name) {
+    prog_state.supported_wrapped_call_inputs.insert(input_name, input_address);
+  } else {
+      msg!("This input has already been registered");
+      return Err(ProgramError::InvalidInstructionData);
+  }
+  prog_state.write_new_prog_state(program_data)?;
+  Ok(())
 }
 
 fn process_enact_basket(
@@ -126,6 +144,14 @@ pub fn process_instruction(
         } => {
             let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
             process_create_basket(&mut prog_state, prog_data_ptr, name, calls, splits)
+        },
+        ProgInstruction::NewSupportedWCallInput {
+            input_name,
+            input_address
+        } => {
+            let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
+            process_new_supported_wrapped_call_input(&mut prog_state, prog_data_ptr,
+                input_name, input_address)
         }
     }
 }

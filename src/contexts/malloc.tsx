@@ -6,7 +6,7 @@ import {
   Transaction,
   Connection,
 } from "@solana/web3.js";
-import React, {useEffect, useMemo, useContext} from "react";
+import React, { useEffect, useMemo, useContext } from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
 import { useWallet, WalletAdapter } from "../contexts/wallet";
 import {
@@ -22,6 +22,7 @@ import {
   InitMallocArgs,
   Basket,
   MallocState,
+  NewSupportedWCallInput,
 } from "../models/malloc";
 import { serializePubkey, trimBuffer } from "../utils/utils";
 
@@ -37,14 +38,19 @@ const MallocContext = React.createContext<Malloc | null>(null);
 export const useMalloc = () => {
   const context = useContext(MallocContext);
   return context as Malloc;
-}
+};
 
-export function MallocProvider({ children = null as any}) {
+export function MallocProvider({ children = null as any }) {
   const { endpoint } = useConnectionConfig();
   const { wallet } = useWallet();
-  const connection = useMemo(() => new Connection(endpoint, "recent"), [ endpoint ]);
-  const malloc = useMemo(() => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet), [connection, wallet])
-  
+  const connection = useMemo(() => new Connection(endpoint, "recent"), [
+    endpoint,
+  ]);
+  const malloc = useMemo(
+    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet),
+    [connection, wallet]
+  );
+
   useEffect(() => {
     let timer = 0;
 
@@ -57,7 +63,7 @@ export function MallocProvider({ children = null as any}) {
 
     return () => {
       window.clearTimeout(timer);
-    }
+    };
   }, [malloc]);
 
   return (
@@ -90,8 +96,8 @@ class Malloc {
     args: RegisterCallArgs
   ) {
     if (!this.wallet) {
-      alert("please connect your wallet first")
-      return
+      alert("please connect your wallet first");
+      return;
     }
     let wcall: any;
     if (
@@ -101,7 +107,7 @@ class Malloc {
       wcall = {
         Chained: ((args.wcall.data as any) as PublicKey[]).map((k) =>
           serializePubkey(k)
-        ), //.toBase58()),
+        ),
       };
     } else if (
       args.wcall.type === WCallTypes.Simple &&
@@ -120,15 +126,15 @@ class Malloc {
       new TransactionInstruction({
         keys: [
           {
+            isWritable: false,
+            pubkey: this.wallet.publicKey as PublicKey,
+            isSigner: true,
+          },
+	  {
             isWritable: true,
             pubkey: this.progStateAccount,
             isSigner: false,
-          },
-          {
-            isWritable: false,
-            pubkey: this.wallet.publicKey as PublicKey,
-            isSigner: true
-          },
+          }
         ],
         programId: this.progId,
         data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
@@ -136,10 +142,37 @@ class Malloc {
     );
   }
 
+  public registerNewSupportedWCall(
+    instructions: TransactionInstruction[],
+    args: NewSupportedWCallInput
+  ) {
+    if (!this.wallet) {
+      alert("please connect your wallet first");
+      return;
+    }
+    instructions.push(
+      new TransactionInstruction({
+        keys: [
+          {
+            isWritable: true,
+            pubkey: this.progStateAccount,
+            isSigner: false,
+          },
+          {
+            isWritable: false,
+            pubkey: this.wallet.publicKey as PublicKey,
+            isSigner: true,
+          },
+        ],
+        programId: this.progId,
+        data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
+      })
+    );
+  }
+
   private parseAccountState(data: Buffer): MallocState {
-    const buf = trimBuffer(data)
+    const buf = trimBuffer(data);
     const bufString = buf.toString();
-    console.log(data)
     const state = JSON.parse(bufString);
     console.log(state);
     return state;
@@ -154,8 +187,10 @@ class Malloc {
       };
     }
 
-    const accountInfo = await this.connection.getAccountInfo(this.progStateAccount);
-    console.log(accountInfo)
+    const accountInfo = await this.connection.getAccountInfo(
+      this.progStateAccount
+    );
+    console.log(accountInfo);
     if (!accountInfo) {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
       return;
@@ -198,12 +233,14 @@ class Malloc {
   createBasket(args: CreateBasketArgs) {
     // TODO: implement
   }
+
   enactBasket(args: EnactBasketArgs) {
     // TODO: implement
   }
+
   public async sendMallocTransaction(instructions: TransactionInstruction[]) {
     if (!this.wallet) {
-      alert("please connect your wallet first")
+      alert("please connect your wallet first");
       return;
     }
     console.log(
