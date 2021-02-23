@@ -8,10 +8,10 @@ import {
 import { AccountInfo as TokenAccountInfo, Token } from "@solana/spl-token";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
 
-type PubKeyRep = Uint8Array;
+type PubKeyRep = number[];
 
 export interface BasketNode {
-  name: string
+  name: string;
   splits: number[];
   calls: (WCallSimpleNode | WCallChainedNode | BasketNode)[];
 }
@@ -26,7 +26,6 @@ export interface WCallChainedNode {
   wcall: PublicKey;
   callbackBasket: BasketNode;
 }
-
 
 export interface Basket {
   calls: string[];
@@ -50,7 +49,7 @@ export function isWCallSimple(v: any) {
  * @info The first Pubkey is for the WCall's address, the second for the callback
  * basket
  */
-export interface WCallChained  {
+export interface WCallChained {
   wcall: PublicKey;
   callbackBasket: string;
 }
@@ -93,10 +92,15 @@ export interface EnactBasketArgs {
   basket_name: string;
 }
 export interface InitMallocArgs {}
+export interface NewSupportedWCallInput {
+  input_name: string;
+  input_address: PubKeyRep;
+}
 
 export enum ProgramInstruction {
   RegisterCall = "RegisterCall",
   CreateBasket = "CreateBasket",
   EnactBasket = "EnactBasket",
   InitMalloc = "InitMalloc",
+  NewSupportedWCallInput = "NewSupportedWCallInput",
 }
