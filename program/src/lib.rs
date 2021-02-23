@@ -9,6 +9,7 @@ pub mod error;
 mod instruction;
 pub mod processor;
 mod solana_utils;
+mod wcall_handlers;
 
 // Export current sdk types for downstream users building with a different sdk version
 pub use solana_program;

@@ -50,7 +50,11 @@ fn process_enact_basket(
     prog_state: &ProgState,
     basket_name: String,
 ) -> ProgramResult {
-    // TODO: impl me
+    let basket = prog_state.baskets.get(&basket_name).ok_or(ProgramError::InvalidInstructionData)?;
+    for call_name in basket.calls.iter() {
+      
+    }
+    // invoke(&instruction, accounts)?;
     Ok(())
 }
 

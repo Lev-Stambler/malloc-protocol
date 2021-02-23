@@ -30,11 +30,15 @@ pub const MAX_SIGNERS: usize = 11;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum WCall {
-    Simple(WCallAddr),
+    Simple {
+        wcall: WCallAddr,
+        input: WCallInputName
+    },
     Chained {
         wcall: WCallAddr,
         callback_basket: BasketName,
-        output: String,
+        input: WCallInputName,
+        output: WCallInputName,
     },
 }
 
@@ -59,7 +63,7 @@ pub struct ProgState {
     /// All the baskets with the basket name as a key
     pub baskets: BTreeMap<BasketName, Basket>,
     /// map from WCallName to input it takes
-    pub supported_wrapped_call_inputs: BTreeMap<WCallName, WCallInputName>,
+    pub supported_wrapped_call_inputs: BTreeMap<WCallInputName, Pubkey>,
 }
 
 /// Instructions supported by the token program.
