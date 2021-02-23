@@ -13,18 +13,22 @@ export const SPLIT_SUM = 1000;
 type PubKeyRep = Uint8Array;
 
 export interface BasketNode {
-  name: string
+  name: string;
+  input: string;
   splits: number[];
   calls: (WCallSimpleNode | WCallChainedNode)[];
 }
 
 export interface WCallSimpleNode {
   name: string;
+  input: string;
   wcall: PublicKey;
 }
 
 export interface WCallChainedNode {
   name: string;
+  input: string;
+  output: string;
   wcall: PublicKey;
   callbackBasket: BasketNode;
 }
