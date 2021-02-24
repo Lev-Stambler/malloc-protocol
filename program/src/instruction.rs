@@ -138,7 +138,7 @@ impl ProgState {
             input
         };
         serde_json::from_slice(inp_trimmed).map_err(|e| {
-            msg!("Error parsing state data {:?}", e);
+            msg!("MALLOC LOG: Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }
@@ -154,7 +154,7 @@ impl ProgInstruction {
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         serde_json::from_slice(input).map_err(|e| {
-            msg!("Error parsing input data {:?}", e);
+            msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }

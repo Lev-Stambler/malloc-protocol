@@ -134,7 +134,7 @@ async function initMallocData() {
 }
 
 async function initAccounts(): Promise<Connection> {
-  connection = new Connection("http://127.0.0.1:8899", "singleGossip");
+  connection = new Connection("https://devnet.solana.com", "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
@@ -179,6 +179,7 @@ describe("Run a standard set of Malloc tests", async function () {
               new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
             input: "Wrapped Eth",
+            associated_accounts: []
           },
         },
       },
@@ -194,6 +195,7 @@ describe("Run a standard set of Malloc tests", async function () {
               new PublicKey("3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
             input: "Wrapped Eth",
+            associated_accounts: []
           },
         },
       },

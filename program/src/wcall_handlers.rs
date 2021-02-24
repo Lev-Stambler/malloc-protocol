@@ -20,7 +20,6 @@ pub fn enact_wcall_simple(
     let inact_inst = Instruction::new(program_id.to_owned(), &data, account_metas);
     let account_infos: Vec<AccountInfo> = vec![];
     invoke(&inact_inst, &inp_accounts);
-
     Ok(())
 }
 

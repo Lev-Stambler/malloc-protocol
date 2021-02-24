@@ -15,7 +15,7 @@ fn process_register_call(
     wcall: WCall,
 ) -> ProgramResult {
     if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
-        msg!("This name already exists as a registered call");
+        msg!("MALLOC LOG: This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
     // TODO: if it's not in there, do we want the user to allow for adding this?
@@ -25,7 +25,7 @@ fn process_register_call(
         WCall::Chained { input, .. } => input
     };
     if let None = prog_state.supported_wrapped_call_inputs.get(call_input) {
-        msg!("The w-call's inputs must be supported");
+        msg!("MALLOC LOG: The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
     }
     let _ = prog_state.wrapped_calls.insert(name, wcall);
@@ -42,7 +42,7 @@ fn process_new_supported_wrapped_call_input(
   if let None = prog_state.supported_wrapped_call_inputs.get(&input_name) {
     prog_state.supported_wrapped_call_inputs.insert(input_name, input_address);
   } else {
-      msg!("This input has already been registered");
+      msg!("MALLOC LOG: This input has already been registered");
       return Err(ProgramError::InvalidInstructionData);
   }
   prog_state.write_new_prog_state(program_data)?;
@@ -75,7 +75,7 @@ fn process_enact_basket(
       // TODO: overflows?
       let amount_approve = amount_input * split_amount / 1_000;
       if (amount_remaining < amount_approve) {
-          msg!("Overdrawing funds somehow!");
+          msg!("MALLOC LOG: Overdrawing funds somehow!");
           return Err(ProgramError::InvalidInstructionData);
       }
       amount_remaining -= amount_approve;
@@ -121,7 +121,7 @@ fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResu
     }
     let new_state = ProgState::new();
     let _ = new_state.write_new_prog_state(program_data);
-    msg!("init malloc done!");
+    msg!("MALLOC LOG: init malloc done!");
     Ok(())
 }
 
@@ -157,7 +157,7 @@ pub fn process_instruction(
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
-        msg!("InitMalloc");
+        msg!("MALLOC LOG: InitMalloc");
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
