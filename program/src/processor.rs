@@ -3,6 +3,7 @@ use crate::instruction::{self, Basket, ProgInstruction, ProgState, WCall};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey,
+    program_pack::{IsInitialized, Pack}
 };
 use std::str::from_utf8;
 
@@ -14,7 +15,7 @@ fn process_register_call(
     wcall: WCall,
 ) -> ProgramResult {
     if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
-        msg!("This name already exists as a registered call");
+        msg!("MALLOC LOG: This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
     // TODO: if it's not in there, do we want the user to allow for adding this?
@@ -24,7 +25,7 @@ fn process_register_call(
         WCall::Chained { input, .. } => input
     };
     if let None = prog_state.supported_wrapped_call_inputs.get(call_input) {
-        msg!("The w-call's inputs must be supported");
+        msg!("MALLOC LOG: The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
     }
     let _ = prog_state.wrapped_calls.insert(name, wcall);
@@ -41,7 +42,7 @@ fn process_new_supported_wrapped_call_input(
   if let None = prog_state.supported_wrapped_call_inputs.get(&input_name) {
     prog_state.supported_wrapped_call_inputs.insert(input_name, input_address);
   } else {
-      msg!("This input has already been registered");
+      msg!("MALLOC LOG: This input has already been registered");
       return Err(ProgramError::InvalidInstructionData);
   }
   prog_state.write_new_prog_state(program_data)?;
@@ -49,13 +50,66 @@ fn process_new_supported_wrapped_call_input(
 }
 
 fn process_enact_basket(
-    sender: &Pubkey,
     prog_state: &ProgState,
     basket_name: String,
+    remaining_accounts: &[AccountInfo],
+    _start_idx: usize,
+    token_program_id: &Pubkey
 ) -> ProgramResult {
     let basket = prog_state.baskets.get(&basket_name).ok_or(ProgramError::InvalidInstructionData)?;
-    for call_name in basket.calls.iter() {
+    let mut start_idx: usize = _start_idx;
+    let malloc_input = &remaining_accounts[start_idx];
+    let malloc_spl_account: spl_token::state::Account = Pack::unpack(
+        malloc_input.data.borrow().as_ref())?;
+    let amount_input = malloc_spl_account.amount;
+    let mut amount_remaining = amount_input;
+
+    start_idx += 1;
+    for i in 0..basket.calls.len() {
+      let call_name = basket.calls[i].clone();
+      let split_amount = basket.splits[i];
+
+      // Handle fund approval
+      // TODO: how to handle rounding errors, I.e. a small amount may be left
+      // due to rounding errors after everything completes
+      // TODO: overflows?
+      let amount_approve = amount_input * split_amount / 1_000;
+      if (amount_remaining < amount_approve) {
+          msg!("MALLOC LOG: Overdrawing funds somehow!");
+          return Err(ProgramError::InvalidInstructionData);
+      }
+      amount_remaining -= amount_approve;
+      let split_account = &remaining_accounts[start_idx + 1];
+      // The owner of the source must be present in the signer
+      let approve_inst = spl_token::instruction::approve(
+          token_program_id,
+          malloc_input.key,
+          split_account.key,
+          malloc_input.key,
+          &vec![malloc_input.owner],
+          amount_approve
+      );
       
+
+      let wcall = prog_state.wrapped_calls.get(&call_name).
+          ok_or(ProgramError::InvalidInstructionData)?;
+      let res = match wcall {
+          WCall::Simple { wcall, associated_accounts: associated_accounts_pubkeys, .. } => {
+              // + 2 because 1 for exec account 1 for split account
+              let inp_accounts = &remaining_accounts[start_idx..
+                  (associated_accounts_pubkeys.len() + start_idx + 2)];
+              start_idx += associated_accounts_pubkeys.len() + 2;
+              crate::wcall_handlers::enact_wcall_simple(wcall, inp_accounts)
+          }
+          WCall::Chained {wcall, associated_accounts: associated_accounts_pubkeys,
+            callback_basket, .. } => {
+              // + 2 because 1 for exec account 1 for split account
+              let inp_accounts = &remaining_accounts[start_idx..
+                  (associated_accounts_pubkeys.len() + start_idx + 2)];
+              let output_account = &inp_accounts[inp_accounts.len() - 1];
+              Ok(())
+          }
+      };
     }
     // invoke(&instruction, accounts)?;
     Ok(())
@@ -67,7 +121,7 @@ fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResu
     }
     let new_state = ProgState::new();
     let _ = new_state.write_new_prog_state(program_data);
-    msg!("init malloc done!");
+    msg!("MALLOC LOG: init malloc done!");
     Ok(())
 }
 
@@ -76,7 +130,7 @@ fn process_create_basket(
     program_data: *mut u8,
     name: String,
     calls: Vec<String>,
-    splits: Vec<i32>,
+    splits: Vec<u64>,
 ) -> ProgramResult {
     // TODO: checking
     let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
@@ -103,7 +157,7 @@ pub fn process_instruction(
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
-        msg!("InitMalloc");
+        msg!("MALLOC LOG: InitMalloc");
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
@@ -138,7 +192,9 @@ pub fn process_instruction(
             )
         }
         ProgInstruction::EnactBasket { basket_name } => {
-            process_enact_basket(account_info.owner, &prog_state, basket_name)
+            // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
+            let spl_token_prog = Pubkey::new(&vec![6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169]);
+            process_enact_basket(&prog_state, basket_name, &accounts[2..], 0, &spl_token_prog)
         }
         ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {

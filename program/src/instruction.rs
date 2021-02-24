@@ -50,7 +50,7 @@ pub struct Basket {
     pub calls: Vec<WCallName>,
     /// the proportional split of every element in calls such that all elems
     /// sum to 1_000
-    pub splits: Vec<i32>,
+    pub splits: Vec<u64>,
     /// the basket's creator
     pub creator: Pubkey,
     /// the input SPL type address
@@ -79,11 +79,14 @@ pub enum ProgInstruction {
     CreateBasket {
         name: BasketName,
         calls: Vec<WCallName>,
-        splits: Vec<i32>,
+        splits: Vec<u64>,
     },
     ///
     /// Accounts expected:
-    /// program_info, account_info
+    /// program_info, malloc_input, w[0][0]' executable, w[0][0] split account,
+    /// w[0][0] associated accounts, w[0][0] output account if chained, w[0][1] split account
+    /// w[0][1]'s associated account, w[0][1] out if chained, (w[0][2]... if w[0][1]) chained,.. 
+    /// w[1][0]...
     EnactBasket {
         basket_name: BasketName,
     },
@@ -95,7 +98,7 @@ pub enum ProgInstruction {
 }
 
 impl Basket {
-    pub fn new(calls: Vec<String>, splits: Vec<i32>, creator: Pubkey, input: String) -> Self {
+    pub fn new(calls: Vec<String>, splits: Vec<u64>, creator: Pubkey, input: String) -> Self {
         Basket {
             calls,
             splits,
@@ -135,7 +138,7 @@ impl ProgState {
             input
         };
         serde_json::from_slice(inp_trimmed).map_err(|e| {
-            msg!("Error parsing state data {:?}", e);
+            msg!("MALLOC LOG: Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }
@@ -151,7 +154,7 @@ impl ProgInstruction {
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         serde_json::from_slice(input).map_err(|e| {
-            msg!("Error parsing input data {:?}", e);
+            msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }
