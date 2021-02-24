@@ -34,6 +34,7 @@ export class Malloc {
   private progId: PublicKey;
   private connection: Connection;
   private wallet: WalletAdapter | undefined;
+  private userPubKeyAlt: PublicKey | undefined;
   private state: MallocState | undefined;
   private tokenAccounts: any;
   private nativeAccounts: any;
@@ -51,6 +52,10 @@ export class Malloc {
     this.wallet = wallet;
     this.tokenAccounts = accountsContext.userAccounts;
     this.nativeAccounts = accountsContext.nativeAccounts;
+  }
+
+  public setUserPubKeyAlt(pubkey: PublicKey) {
+    this.userPubKeyAlt = pubkey;
   }
 
   public registerCall(args: RegisterCallArgs) {
@@ -90,7 +95,7 @@ export class Malloc {
       keys: [
         {
           isWritable: false,
-          pubkey: this.wallet.publicKey as PublicKey,
+          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
           isSigner: true,
         },
         {
@@ -122,7 +127,7 @@ export class Malloc {
           },
           {
             isWritable: false,
-            pubkey: this.wallet.publicKey as PublicKey,
+            pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
             isSigner: true,
           },
         ],
@@ -298,10 +303,10 @@ export class Malloc {
       let signers: Account[] = [];
       const ephemeralAccountPubKey = createTokenAccount(
         initEphemeralAccountInstsructions,
-        this.wallet?.publicKey as PublicKey,
+        this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
         rent,
         mint,
-        this.wallet?.publicKey as PublicKey,
+        this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
         signers
       );
       if (
@@ -321,10 +326,10 @@ export class Malloc {
         let signers: Account[] = [];
         const ephemeralAccountPubKey = createTokenAccount(
           initEphemeralAccountInstsructions,
-          this.wallet?.publicKey as PublicKey,
+          this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
           rent,
           mint,
-          this.wallet?.publicKey as PublicKey,
+          this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
           signers
         );
         if (signers[0].publicKey !== ephemeralAccountPubKey) {
@@ -388,16 +393,30 @@ export class Malloc {
     rent: number,
     amount: number
   ): Account[] {
-    const mallocInputPubKey = approve(
+    const mallocInputPubkey = createTokenAccount(
+      instructions,
+      this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
+      // TODO ????
+      1000,
+      this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
+      this.progId,
+      []
+    );
+    approve(
       instructions,
       [],
       userInputPubKey,
-      (this.wallet as any as WalletAdapter).publicKey as PublicKey,
+      this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       amount,
-      false
+      false,
+      mallocInputPubkey
     );
-    
-    const setupResult = this.setupInvokeCallGraph(basket, mallocInputPubKey.publicKey, rent);
+
+    const setupResult = this.setupInvokeCallGraph(
+      basket,
+      mallocInputPubkey,
+      rent
+    );
     if (!setupResult) {
       return [];
     }
@@ -478,7 +497,8 @@ export class Malloc {
         },
         {
           isWritable: false,
-          pubkey: this.wallet.publicKey as PublicKey,
+          pubkey: ((this.wallet as any) as WalletAdapter)
+            .publicKey as PublicKey,
           isSigner: true,
         },
       ],
@@ -495,7 +515,7 @@ export class Malloc {
     return new TransactionInstruction({
       keys: [
         this.progStateAccount,
-        (this.wallet as WalletAdapter).publicKey as PublicKey,
+        (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
         ...requiredAccountKeys,
       ].map((key) => ({
         isWritable: true,

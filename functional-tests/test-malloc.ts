@@ -18,6 +18,7 @@ import { serializePubkey, trimBuffer } from "../src/utils/utils";
 import { MallocState } from "../src/models/malloc";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
+import { WalletProvider } from "../src/contexts/wallet";
 
 const account = new Account();
 const data_account = new Account();
@@ -221,6 +222,8 @@ describe("Run a standard set of Malloc tests", async function () {
       undefined,
       {}
     );
+    malloc_class.setUserPubKeyAlt(account.publicKey)
+
     await malloc_class.refresh()
     const insts: TransactionInstruction[] = [];
     const basketNode = malloc_class.getCallGraph("Just buy just buy eth")
@@ -229,7 +232,8 @@ describe("Run a standard set of Malloc tests", async function () {
       insts,
       basketNode,
       new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
-      10000
+      10000,
+      100000
     );
     console.log(accounts)
 
