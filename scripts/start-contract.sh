@@ -4,7 +4,7 @@
 solana airdrop 10
 (cd program && cargo build-bpf)
 
-$(solana-test-validator -u d &) || "Already running"
+$(solana-test-validator -u d &> /dev/null &) || "Already running"
 sleep 2
 
 echo "$PWD/program/target/deploy/malloc.so" 

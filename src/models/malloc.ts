@@ -23,6 +23,7 @@ export interface WCallSimpleNode {
   name: string;
   input: string;
   wcall: PublicKey;
+  associateAccounts: PublicKey[]
 }
 
 export interface WCallChainedNode {
@@ -31,6 +32,7 @@ export interface WCallChainedNode {
   output: string;
   wcall: PublicKey;
   callbackBasket: BasketNode;
+  associateAccounts: PublicKey[]
 }
 
 export interface Basket {
@@ -74,10 +76,7 @@ export function isWCallChained(v: any) {
 export interface MallocState {
   // name to public key
   wrapped_calls: {
-    [name: string]: {
-      type: WCallTypes;
-      data: WCallChained | WCallSimple;
-    };
+    [name: string]: WCallChained | WCallSimple
   };
   baskets: {
     [name: string]: Basket;

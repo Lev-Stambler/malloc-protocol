@@ -11,11 +11,13 @@ import {
 //@ts-ignore
 import bs58 from "bs58";
 import { assert } from "chai";
-const progKey = require('../src/config/program_id.json').programId
+const progKey = require("../src/config/program_id.json").programId;
 const progId = new PublicKey(progKey);
 import "mocha";
 import { serializePubkey, trimBuffer } from "../src/utils/utils";
 import { MallocState } from "../src/models/malloc";
+// @ts-ignore
+import { Malloc } from "../src/contexts/malloc-class";
 
 const account = new Account();
 const data_account = new Account();
@@ -122,9 +124,9 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
 }
 
 async function doGeneralInstrSingleton(data: any) {
-  const insts: TransactionInstruction[] = []
-  addGeneralTransaction(insts, data)
-  await sendGeneralInstruction(insts)
+  const insts: TransactionInstruction[] = [];
+  addGeneralTransaction(insts, data);
+  await sendGeneralInstruction(insts);
 }
 
 async function initMallocData() {
@@ -179,7 +181,7 @@ describe("Run a standard set of Malloc tests", async function () {
               new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
             input: "Wrapped Eth",
-            associated_accounts: []
+            associated_accounts: [],
           },
         },
       },
@@ -195,7 +197,7 @@ describe("Run a standard set of Malloc tests", async function () {
               new PublicKey("3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
             input: "Wrapped Eth",
-            associated_accounts: []
+            associated_accounts: [],
           },
         },
       },
@@ -221,6 +223,25 @@ describe("Run a standard set of Malloc tests", async function () {
         splits: [500, 500],
       },
     });
+
+    const malloc_class = new Malloc(
+      data_account.publicKey,
+      progId,
+      connection,
+      undefined,
+      {}
+    );
+    await malloc_class.refresh()
+    const insts: TransactionInstruction[] = [];
+    console.log("AASASAS")
+    const basketNode = malloc_class.getCallGraph("Just buy just buy eth")
+    console.log(basketNode)
+    malloc_class.invokeCallGraph(
+      insts,
+      basketNode,
+      new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
+      10000
+    );
 
     const data = (await getDataParsed()) as MallocState;
     console.log(data.baskets);
