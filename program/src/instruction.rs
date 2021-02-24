@@ -80,6 +80,7 @@ pub enum ProgInstruction {
         name: BasketName,
         calls: Vec<WCallName>,
         splits: Vec<u64>,
+        input: WCallInputName
     },
     ///
     /// Accounts expected:

@@ -23,7 +23,7 @@ export interface WCallSimpleNode {
   name: string;
   input: string;
   wcall: PublicKey;
-  associateAccounts: PublicKey[]
+  associateAccounts: PublicKey[];
 }
 
 export interface WCallChainedNode {
@@ -32,7 +32,7 @@ export interface WCallChainedNode {
   output: string;
   wcall: PublicKey;
   callbackBasket: BasketNode;
-  associateAccounts: PublicKey[]
+  associateAccounts: PublicKey[];
 }
 
 export interface Basket {
@@ -50,7 +50,7 @@ export enum WCallTypes {
 export interface WCallSimple {
   wcall: PublicKey;
   input: string;
-  associated_accounts: PublicKey[]
+  associated_accounts: PublicKey[];
 }
 
 export function isWCallSimple(v: any) {
@@ -66,7 +66,7 @@ export interface WCallChained {
   callback_basket: string;
   input: string;
   output: string;
-  associated_accounts: PublicKey[]
+  associated_accounts: PublicKey[];
 }
 
 export function isWCallChained(v: any) {
@@ -76,7 +76,7 @@ export function isWCallChained(v: any) {
 export interface MallocState {
   // name to public key
   wrapped_calls: {
-    [name: string]: WCallChained | WCallSimple
+    [name: string]: { Chained: WCallChained } | { Simple: WCallSimple };
   };
   baskets: {
     [name: string]: Basket;
@@ -98,6 +98,7 @@ export interface CreateBasketArgs {
   name: string;
   calls: string[];
   splits: number[];
+  input: string;
 }
 export interface EnactBasketArgs {
   basket_name: string;

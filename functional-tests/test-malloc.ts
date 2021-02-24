@@ -210,17 +210,7 @@ describe("Run a standard set of Malloc tests", async function () {
           "Just buy some more Eth",
         ],
         splits: [500, 500],
-      },
-    });
-
-    await doGeneralInstrSingleton({
-      CreateBasket: {
-        name: "Just buy just buy eth",
-        calls: [
-          "Just buy some more Eth part 2, return of the electric bogoloo",
-          "Just buy some more Eth",
-        ],
-        splits: [500, 500],
+        input: "Wrapped Eth"
       },
     });
 
@@ -233,15 +223,15 @@ describe("Run a standard set of Malloc tests", async function () {
     );
     await malloc_class.refresh()
     const insts: TransactionInstruction[] = [];
-    console.log("AASASAS")
     const basketNode = malloc_class.getCallGraph("Just buy just buy eth")
-    console.log(basketNode)
-    malloc_class.invokeCallGraph(
+    console.log("Basket node", basketNode)
+    const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
       new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
       10000
     );
+    console.log(accounts)
 
     const data = (await getDataParsed()) as MallocState;
     console.log(data.baskets);

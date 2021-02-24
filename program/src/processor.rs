@@ -131,9 +131,10 @@ fn process_create_basket(
     name: String,
     calls: Vec<String>,
     splits: Vec<u64>,
+    input: String,
 ) -> ProgramResult {
     // TODO: checking
-    let new_basket = Basket::new(calls, splits, Pubkey::default(), "MY_INPUT".to_string());
+    let new_basket = Basket::new(calls, splits, Pubkey::default(), input);
     prog_state.baskets.insert(name, new_basket);
     let _ = prog_state.write_new_prog_state(program_data)?;
     Ok(())
@@ -201,9 +202,10 @@ pub fn process_instruction(
             name,
             calls,
             splits,
+            input
         } => {
             let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
-            process_create_basket(&mut prog_state, prog_data_ptr, name, calls, splits)
+            process_create_basket(&mut prog_state, prog_data_ptr, name, calls, splits, input)
         },
         ProgInstruction::NewSupportedWCallInput {
             input_name,
