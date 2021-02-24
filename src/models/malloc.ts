@@ -48,6 +48,7 @@ export enum WCallTypes {
 export interface WCallSimple {
   wcall: PublicKey;
   input: string;
+  associated_accounts: PublicKey[]
 }
 
 export function isWCallSimple(v: any) {
@@ -63,6 +64,7 @@ export interface WCallChained {
   callback_basket: string;
   input: string;
   output: string;
+  associated_accounts: PublicKey[]
 }
 
 export function isWCallChained(v: any) {
@@ -82,7 +84,7 @@ export interface MallocState {
   };
   // name to inputName
   supported_wrapped_call_inputs: {
-    [name: string]: string;
+    [name: string]: PublicKey;
   };
 }
 
