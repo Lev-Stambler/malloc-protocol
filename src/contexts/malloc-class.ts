@@ -137,6 +137,7 @@ export class Malloc {
     );
   }
 
+  // TODO: if you are a PublicKey type convert from the number[] PublicKey
   private parseAccountState(data: Buffer): MallocState {
     const buf = trimBuffer(data);
     const bufString = buf.toString();
@@ -276,7 +277,7 @@ export class Malloc {
     callNode: WCallChainedNode | WCallSimpleNode
   ): WCallChained | WCallSimple {
     const data = (this.state as MallocState).wrapped_calls[callNode.name];
-    if ((data as any).Chained) return (data as any).Chained as WCallChained;
+    if ((data as any).Chained) return (data as any).Chained;
     return (data as any).Simple as WCallSimple;
   }
 
@@ -398,7 +399,11 @@ export class Malloc {
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       // TODO ????
       1000,
-      this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
+      new PublicKey(
+        (this.state?.supported_wrapped_call_inputs[
+          basket.input
+        ] as any) as number[]
+      ),
       this.progId,
       []
     );

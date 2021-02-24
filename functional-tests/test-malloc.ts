@@ -101,7 +101,10 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
     instructions.forEach((inst) => {
       console.log(
         "Adding instruction with data",
-        new TextDecoder("utf-8").decode(inst.data)
+        new TextDecoder("utf-8").decode(inst.data),
+        "And with account pubkeys",
+        inst.keys
+        // inst.keys.map(key => key.pubkey.toBase58())
       );
       tx.add(inst);
     });
@@ -109,15 +112,14 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
       skipPreflight: true,
       commitment: "singleGossip",
     });
-    console.log("Initialized the data in data_account");
     const data_account_info = await connection.getAccountInfo(
       data_account.publicKey
     );
-    console.log(
-      new TextDecoder("utf-8").decode(
-        new Uint8Array(data_account_info?.data || [])
-      )
-    );
+    // console.log(
+    //   new TextDecoder("utf-8").decode(
+    //     new Uint8Array(data_account_info?.data || [])
+    //   )
+    // );
   } catch (e) {
     console.error(e);
     throw e;
@@ -235,6 +237,7 @@ describe("Run a standard set of Malloc tests", async function () {
       10000,
       100000
     );
+    await sendGeneralInstruction(insts)
     console.log(accounts)
 
     const data = (await getDataParsed()) as MallocState;
