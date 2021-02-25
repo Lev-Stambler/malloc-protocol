@@ -98,7 +98,7 @@ async function initMallocData(connection: Connection, data_account: Account) {
 }
 
 async function initAccounts(): Promise<Connection> {
-  let connection = new Connection("http://127.0.0.1:8899", "singleGossip");
+  let connection = new Connection("https://devnet.solana.com", "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
