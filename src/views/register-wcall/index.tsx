@@ -22,10 +22,10 @@ export const RegisterWCallView = () => {
     insts.push(malloc.registerCall({
       call_name: "Yo Mom",
       wcall: {
-        type: WCallTypes.Simple,
-        data: {
+        Simple: {
           wcall: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
-          input: "Wrapped Eth"
+          input: "Wrapped Eth",
+          associated_accounts: []
         }
       },
     }));

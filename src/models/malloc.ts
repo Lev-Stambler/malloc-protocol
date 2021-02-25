@@ -89,10 +89,7 @@ export interface MallocState {
 
 export interface RegisterCallArgs {
   call_name: String;
-  wcall: {
-    type: WCallTypes;
-    data: WCallChained | WCallSimple;
-  };
+  wcall: { Chained: WCallChained } | { Simple: WCallSimple };
 }
 export interface CreateBasketArgs {
   name: string;

@@ -63,33 +63,10 @@ export class Malloc {
       alert("please connect your wallet first");
       throw "wallet not connected";
     }
-    let wcall: any;
-    if (
-      args.wcall.type === WCallTypes.Chained &&
-      isWCallChained(args.wcall.data)
-    ) {
-      wcall = {
-        Chained: {
-          ...args.wcall.data,
-          wcall: serializePubkey(args.wcall.data.wcall as PublicKey),
-        },
-      };
-    } else if (
-      args.wcall.type === WCallTypes.Simple &&
-      isWCallSimple(args.wcall.data)
-    ) {
-      wcall = {
-        Chained: {
-          ...args.wcall.data,
-          wcall: serializePubkey(args.wcall.data.wcall as PublicKey),
-        },
-      };
-    } else {
-      throw "Invalid WCall type and args";
-    }
+      
     const sending_args = {
       call_name: args.call_name,
-      wcall_enum: wcall,
+      wcall_enum: args.wcall,
     };
     return new TransactionInstruction({
       keys: [
@@ -184,8 +161,7 @@ export class Malloc {
           this.registerCall({
             call_name: callNode.name,
             wcall: {
-              type: WCallTypes.Chained,
-              data: {
+              Chained: {
                 wcall: callNode.wcall,
                 callback_basket: callNode.callbackBasket.name,
                 output: callNode.output,
@@ -201,12 +177,11 @@ export class Malloc {
           this.registerCall({
             call_name: callNode.name,
             wcall: {
-              type: WCallTypes.Simple,
-              data: {
+              Simple: {
                 wcall: callNode.wcall,
                 input: callNode.input,
                 associated_accounts: callNode.associateAccounts,
-              },
+              }
             },
           })
         );
