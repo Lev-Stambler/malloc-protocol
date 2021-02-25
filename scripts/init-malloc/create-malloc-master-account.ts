@@ -37,7 +37,7 @@ async function initDataAccount(
     fromPubkey: account.publicKey,
     newAccountPubkey: data_account.publicKey,
     lamports: 1000000000,
-    space: 1024 * 1024, // this is like bytes, wholly poop, so this is 1 meg
+    space: 1024 * 11, // this is like bytes, wholly poop, so this is 10KB
     programId: progId,
   });
   try {

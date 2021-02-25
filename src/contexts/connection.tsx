@@ -241,6 +241,7 @@ export const sendTransaction = async (
   if (signers.length > 0) {
     transaction.partialSign(...signers);
   }
+  console.log("signTransaction");
   transaction = await wallet.signTransaction(transaction);
   const rawTransaction = transaction.serialize();
   let options = {
@@ -248,7 +249,9 @@ export const sendTransaction = async (
     commitment: "singleGossip",
   };
 
+  console.log("sendRawTx");
   const txid = await connection.sendRawTransaction(rawTransaction, options);
+  console.log("txid:", txid);
 
   if (awaitConfirmation) {
     const status = (
@@ -257,6 +260,7 @@ export const sendTransaction = async (
         options && (options.commitment as any)
       )
     ).value;
+    console.log("status", status);
 
     if (status?.err) {
       const errors = await getErrorForTransaction(connection, txid);

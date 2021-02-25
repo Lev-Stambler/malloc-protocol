@@ -3,6 +3,7 @@ import {
   TransactionInstruction,
   Account,
   Connection,
+  AccountMeta,
 } from "@solana/web3.js";
 import { sign } from "crypto";
 import { createTokenAccount, DEFAULT_TEMP_MEM_SPACE } from "../actions/account";
@@ -25,7 +26,7 @@ import {
   MallocState,
   NewSupportedWCallInput,
 } from "../models/malloc";
-import { serializePubkey, trimBuffer } from "../utils/utils";
+import { trimBuffer } from "../utils/utils";
 import { sendTransaction } from "./connection";
 import { WalletAdapter } from "./wallet";
 
@@ -61,24 +62,35 @@ export class Malloc {
   public registerCall(args: RegisterCallArgs) {
     if (!this.wallet) {
       alert("please connect your wallet first");
-      throw "wallet not connected";
+      throw new Error("wallet not connected");
+    }
+
+    let wcall: any;
+
+    if (args.wcall.hasOwnProperty("Simple")) {
+      wcall = args.wcall as { Simple: WCallSimple };
+      wcall.Simple.wcall = wcall.Simple.wcall;
+    } else {
+      wcall = args.wcall as { Chained: WCallChained };
+      wcall.Chained.wcall = wcall.Chained.wcall;
     }
       
     const sending_args = {
       call_name: args.call_name,
-      wcall_enum: args.wcall,
+      wcall_enum: wcall,
     };
+
     return new TransactionInstruction({
       keys: [
-        {
-          isWritable: false,
-          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-          isSigner: true,
-        },
         {
           isWritable: true,
           pubkey: this.progStateAccount,
           isSigner: false,
+        },
+        {
+          isWritable: false,
+          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+          isSigner: true,
         },
       ],
       programId: this.progId,
@@ -119,6 +131,7 @@ export class Malloc {
     const buf = trimBuffer(data);
     const bufString = buf.toString();
     const state = JSON.parse(bufString);
+    
     console.log(state);
     return state;
   }
@@ -135,7 +148,6 @@ export class Malloc {
     const accountInfo = await this.connection.getAccountInfo(
       this.progStateAccount
     );
-    console.log(accountInfo);
     if (!accountInfo) {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
       return;
@@ -162,11 +174,11 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Chained: {
-                wcall: callNode.wcall,
+                wcall: callNode.wcall.toBuffer(),
                 callback_basket: callNode.callbackBasket.name,
                 output: callNode.output,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts,
+                associated_accounts: callNode.associateAccounts.map(k => k.toBuffer()),
               },
             },
           })
@@ -178,9 +190,9 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Simple: {
-                wcall: callNode.wcall,
+                wcall: callNode.wcall.toBuffer(),
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts,
+                associated_accounts: callNode.associateAccounts.map(k => k.toBuffer()),
               }
             },
           })
@@ -257,21 +269,27 @@ export class Malloc {
   }
 
   private getInputMint(inputName: string): PublicKey {
-    return (this.state as MallocState).supported_wrapped_call_inputs[inputName];
+    return new PublicKey(
+      (this.state as MallocState).supported_wrapped_call_inputs[inputName]
+    );
   }
 
-  private getAccountInfoFromCallGraphHelper(
+  private getAccountMetasFromCallGraphHelper(
     basket: BasketNode,
     ephemeralAccounts: Account[],
     initEphemeralAccountInstsructions: TransactionInstruction[],
     rent: number,
-    accountPubKeys: PublicKey[]
+    accountMetas: AccountMeta[]
   ) {
     const mint = this.getInputMint(basket.input);
 
     basket.calls.forEach((call) => {
       // call's program account
-      accountPubKeys.push(call.wcall);
+      accountMetas.push({
+        pubkey: call.wcall,
+        isSigner: false,
+        isWritable: false
+      });
 
       const callData = this.getStateCallFromNode(call);
 
@@ -291,10 +309,22 @@ export class Malloc {
         throw Error("ephemeralAccount not created properly!");
       }
       ephemeralAccounts.push(signers[0]);
-      accountPubKeys.push(ephemeralAccountPubKey);
+      accountMetas.push({
+        pubkey: ephemeralAccountPubKey,
+        isWritable: true,
+        isSigner: true,
+      });
 
       // call's associated accounts
-      accountPubKeys.push(...callData.associated_accounts);
+      const associated_accounts = callData.associated_accounts.map(
+        keyBuf => new PublicKey(keyBuf)
+      );
+
+      accountMetas.push(...associated_accounts.map(key => ({
+        pubkey: key,
+        isWritable: true,
+        isSigner: false
+      })));
 
       if (isWCallChained(callData)) {
         // get output account, if it demands one
@@ -312,15 +342,19 @@ export class Malloc {
           throw Error("ephemeralAccount not created properly!");
         }
         ephemeralAccounts.push(signers[0]);
-        accountPubKeys.push(ephemeralAccountPubKey);
+        accountMetas.push({
+          pubkey: ephemeralAccountPubKey,
+          isWritable: true,
+          isSigner: true
+        });
 
         // recurse
-        this.getAccountInfoFromCallGraphHelper(
+        this.getAccountMetasFromCallGraphHelper(
           (call as WCallChainedNode).callbackBasket,
           ephemeralAccounts,
           initEphemeralAccountInstsructions,
           rent,
-          accountPubKeys
+          accountMetas
         );
       }
     });
@@ -331,7 +365,7 @@ export class Malloc {
     mallocInputPubkey: PublicKey,
     rent: number
   ): {
-    accountPubKeys: PublicKey[];
+    accountMetas: AccountMeta[];
     ephemeralAccounts: Account[];
     initEphemeralAccountInstsructions: TransactionInstruction[];
   } | null {
@@ -340,22 +374,26 @@ export class Malloc {
       return null;
     }
 
-    const accountPubKeys: PublicKey[] = [];
+    const accountMetas: AccountMeta[] = [];
     const ephemeralAccounts: Account[] = [];
     const initEphemeralAccountInstsructions: TransactionInstruction[] = [];
 
-    accountPubKeys.push(mallocInputPubkey);
+    accountMetas.push({
+      pubkey: mallocInputPubkey,
+      isWritable: true,
+      isSigner: true
+    });
 
-    this.getAccountInfoFromCallGraphHelper(
+    this.getAccountMetasFromCallGraphHelper(
       basket,
       ephemeralAccounts,
       initEphemeralAccountInstsructions,
       rent,
-      accountPubKeys
+      accountMetas
     );
 
     return {
-      accountPubKeys,
+      accountMetas,
       ephemeralAccounts,
       initEphemeralAccountInstsructions,
     };
@@ -369,6 +407,7 @@ export class Malloc {
     rent: number,
     amount: number
   ): Account[] {
+    let newAccounts: Account[] = []
     const mallocInputPubkey = createTokenAccount(
       instructions,
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
@@ -377,10 +416,10 @@ export class Malloc {
       new PublicKey(
         (this.state?.supported_wrapped_call_inputs[
           basket.input
-        ] as any) as number[]
+        ] as any)
       ),
       this.progId,
-      []
+      newAccounts
     );
     approve(
       instructions,
@@ -402,18 +441,20 @@ export class Malloc {
     }
 
     const {
-      accountPubKeys,
+      accountMetas,
       ephemeralAccounts,
       initEphemeralAccountInstsructions,
     } = setupResult;
 
+    newAccounts.push(...ephemeralAccounts)
+
     instructions.push(...initEphemeralAccountInstsructions);
 
     instructions.push(
-      this.enactBasket({ basket_name: basket.name }, accountPubKeys)
+      this.enactBasket({ basket_name: basket.name }, accountMetas)
     );
 
-    return ephemeralAccounts;
+    return newAccounts;
   }
 
   public async getEphemeralAccountRent() {
@@ -443,7 +484,7 @@ export class Malloc {
             const callData = (callDescriptor as any).Chained as WCallChained;
             return {
               name: callName,
-              wcall: callData.wcall,
+              wcall: new PublicKey(callData.wcall),
               input: callData.input,
               output: callData.output,
               callbackBasket: this.getCallGraph(callData.callback_basket),
@@ -455,7 +496,7 @@ export class Malloc {
             return {
               name: callName,
               input: callData.input,
-              wcall: callData.wcall,
+              wcall: new PublicKey(callData.wcall),
             } as WCallSimpleNode;
           }
         }
@@ -466,7 +507,7 @@ export class Malloc {
   createBasket(args: CreateBasketArgs) {
     if (!this.wallet) {
       alert("please connect your wallet first");
-      throw "wallet not connected";
+      throw new Error("wallet not connected");
     }
     return new TransactionInstruction({
       keys: [
@@ -487,27 +528,38 @@ export class Malloc {
     });
   }
 
-  enactBasket(args: EnactBasketArgs, requiredAccountKeys: PublicKey[]) {
+  enactBasket(args: EnactBasketArgs, requiredAccountMetas: AccountMeta[]) {
     // if (!this.wallet) {
     //   alert("please connect your wallet first");
     //   throw "wallet not connected";
     // }
+    const progStateMeta = {
+      isWritable: true,
+      pubkey: this.progStateAccount,
+      isSigner: false
+    }
+
+    const walletMeta = {
+      isWritable: false,
+      pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+      isSigner: true
+    }
+
     return new TransactionInstruction({
       keys: [
-        this.progStateAccount,
-        (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-        ...requiredAccountKeys,
-      ].map((key) => ({
-        isWritable: true,
-        pubkey: key,
-        isSigner: false,
-      })),
+        progStateMeta,
+        walletMeta,
+        ...requiredAccountMetas,
+      ],
       programId: this.progId,
       data: Buffer.from(JSON.stringify({ enactBasket: args })),
     });
   }
 
-  public async sendMallocTransaction(instructions: TransactionInstruction[]) {
+  public async sendMallocTransaction(
+    instructions: TransactionInstruction[],
+    signers: Account[]
+  ) {
     if (!this.wallet) {
       alert("please connect your wallet first");
       return;
@@ -516,7 +568,7 @@ export class Malloc {
       "Sending transaction with instruction data",
       instructions.map((inst) => new TextDecoder("utf-8").decode(inst.data))
     );
-    await sendTransaction(this.connection, this.wallet, instructions, []);
+    await sendTransaction(this.connection, this.wallet, instructions, signers);
     await this.refresh();
   }
 }

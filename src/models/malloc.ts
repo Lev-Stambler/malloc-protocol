@@ -48,13 +48,13 @@ export enum WCallTypes {
 }
 
 export interface WCallSimple {
-  wcall: PublicKey;
+  wcall: PubKeyRep;
   input: string;
-  associated_accounts: PublicKey[];
+  associated_accounts: PubKeyRep[];
 }
 
 export function isWCallSimple(v: any) {
-  return v instanceof PublicKey;
+  return !isWCallChained(v);
 }
 
 /**
@@ -62,11 +62,11 @@ export function isWCallSimple(v: any) {
  * basket
  */
 export interface WCallChained {
-  wcall: PublicKey;
+  wcall: PubKeyRep;
   callback_basket: string;
   input: string;
   output: string;
-  associated_accounts: PublicKey[];
+  associated_accounts: PubKeyRep[];
 }
 
 export function isWCallChained(v: any) {
@@ -83,7 +83,7 @@ export interface MallocState {
   };
   // name to inputName
   supported_wrapped_call_inputs: {
-    [name: string]: PublicKey;
+    [name: string]: PubKeyRep;
   };
 }
 

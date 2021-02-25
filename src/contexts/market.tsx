@@ -71,7 +71,6 @@ export function MarketProvider({ children = null as any }) {
     let timer = 0;
 
     const updateData = async () => {
-      console.log('bruh')
       await refreshAccounts(connection, [...accountsToObserve.keys()]);
       marketEmitter.raiseMarketUpdated(new Set([...marketByMint.keys()]));
 

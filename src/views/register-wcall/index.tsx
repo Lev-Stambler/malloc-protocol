@@ -23,7 +23,7 @@ export const RegisterWCallView = () => {
       call_name: "Yo Mom",
       wcall: {
         Simple: {
-          wcall: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
+          wcall: (new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN")).toBuffer(),
           input: "Wrapped Eth",
           associated_accounts: []
         }

@@ -20,7 +20,7 @@ const PROGRAM_STATE_ADDR = new PublicKey(
 const PROGRAM_ID = new PublicKey(
   require("../config/program_id.json").programId
 );
-const REFRESH_INTERVAL = 3000;
+const REFRESH_INTERVAL = 30_000;
 const MallocContext = React.createContext<Malloc | null>(null);
 
 export const useMalloc = () => {
@@ -47,7 +47,6 @@ export function MallocProvider({ children = null as any }) {
 
   useEffect(() => {
     const updateMalloc = async () => {
-      console.log("malloc auto update")
       await malloc.refresh();
     };
     const interval = window.setInterval(updateMalloc, REFRESH_INTERVAL)

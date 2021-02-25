@@ -176,6 +176,7 @@ pub fn process_instruction(
     let program_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
+    msg!("MALLOC LOG: program_info_pubkey = {}", program_info.key);
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
@@ -189,6 +190,9 @@ pub fn process_instruction(
     let account_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+    msg!("MALLOC LOG: account_info_pubkey = {}", account_info.key);
+
     //if let Some(address) = account_info.signer_key() {
     //    if address != account_info.owner {
     //        return Err(ProgramError::MissingRequiredSignature);

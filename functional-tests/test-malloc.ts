@@ -28,7 +28,7 @@ function parseAccountState(data: Buffer): MallocState {
   const buf = trimBuffer(data);
   const bufString = buf.toString();
   const state = JSON.parse(bufString);
-  console.log(state);
+
   return state;
 }
 
@@ -95,7 +95,10 @@ function addGeneralTransaction(
   );
 }
 
-async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
+async function sendGeneralInstruction(
+  instructions: TransactionInstruction[],
+  signers: Account[] = []
+) {
   try {
     const tx = new Transaction();
     instructions.forEach((inst) => {
@@ -108,7 +111,7 @@ async function sendGeneralInstruction(instructions: TransactionInstruction[]) {
       );
       tx.add(inst);
     });
-    await sendAndConfirmTransaction(connection, tx, [account], {
+    await sendAndConfirmTransaction(connection, tx, [account, ...signers], {
       skipPreflight: true,
       commitment: "singleGossip",
     });
@@ -237,11 +240,12 @@ describe("Run a standard set of Malloc tests", async function () {
       10000,
       100000
     );
-    await sendGeneralInstruction(insts)
-    console.log(accounts)
+    console.log("Accounts:", accounts);
+
+    await sendGeneralInstruction(insts, accounts)
 
     const data = (await getDataParsed()) as MallocState;
-    console.log(data.baskets);
+    console.log("baskets:", data.baskets);
     assert(data.wrapped_calls["Just buy some more Eth"]);
     assert(data.supported_wrapped_call_inputs["Wrapped Eth"]);
     assert(data.baskets["Just buy just buy eth"]);
