@@ -8,30 +8,10 @@ import {
   Connection,
   AccountInfo,
 } from "@solana/web3.js";
-import React, { useEffect, useMemo, useContext } from "react";
+import React, { useEffect, useMemo, useContext, useState } from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
 import { useWallet, WalletAdapter } from "../contexts/wallet";
 import {useAccountsContext} from "../contexts/accounts";
-import {createTokenAccount, DEFAULT_TEMP_MEM_SPACE} from "../actions/account";
-import {
-  RegisterCallArgs,
-  WCallTypes,
-  BasketNode,
-  WCallSimple,
-  WCallChained,
-  isWCallChained,
-  isWCallSimple,
-  WCallSimpleNode,
-  WCallChainedNode,
-  CreateBasketArgs,
-  EnactBasketArgs,
-  InitMallocArgs,
-  Basket,
-  SPLIT_SUM,
-  MallocState,
-  NewSupportedWCallInput,
-} from "../models/malloc";
-import { serializePubkey, trimBuffer } from "../utils/utils";
 import { Malloc } from "./malloc-class";
 
 const PROGRAM_STATE_ADDR = new PublicKey(
@@ -40,7 +20,7 @@ const PROGRAM_STATE_ADDR = new PublicKey(
 const PROGRAM_ID = new PublicKey(
   require("../config/program_id.json").programId
 );
-const REFRESH_INTERVAL = 1000;
+const REFRESH_INTERVAL = 3000;
 const MallocContext = React.createContext<Malloc | null>(null);
 
 export const useMalloc = () => {
@@ -55,23 +35,24 @@ export function MallocProvider({ children = null as any }) {
   const connection = useMemo(() => new Connection(endpoint, "recent"), [
     endpoint,
   ]);
+
   const malloc = useMemo(
-    () => new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext),
+    () => {
+      console.log("memo")
+      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext)
+    },
     [connection, wallet, accountsContext]
   );
 
+
   useEffect(() => {
-    let timer = 0;
-
     const updateMalloc = async () => {
+      console.log("malloc auto update")
       await malloc.refresh();
-      timer = window.setTimeout(() => updateMalloc, REFRESH_INTERVAL);
     };
-
-    updateMalloc();
-
+    const interval = window.setInterval(updateMalloc, REFRESH_INTERVAL)
     return () => {
-      window.clearTimeout(timer);
+      window.clearInterval(interval);
     };
   }, [malloc]);
 
