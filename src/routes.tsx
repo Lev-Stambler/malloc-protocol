@@ -7,7 +7,7 @@ import { MarketProvider } from "./contexts/market";
 import { MallocProvider } from "./contexts/malloc";
 import { AppLayout } from "./components/Layout";
 
-import { FaucetView, HomeView, RegisterWCallView } from "./views";
+import { FaucetView, HomeView, RegisterWCallView, CallGraphView } from "./views";
 
 export function Routes() {
   return (
@@ -22,6 +22,7 @@ export function Routes() {
                     <Switch>
                       <Route exact path="/" component={() => <HomeView />} />
                       <Route exact path="/faucet" children={<FaucetView />} />
+                      <Route exact path="/graph" children={<CallGraphView />} />
                       <Route exact path="/register-wcall" children={<RegisterWCallView />} />
                     </Switch>
                   </AppLayout>
