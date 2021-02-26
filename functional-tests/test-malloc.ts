@@ -133,7 +133,7 @@ async function sendGeneralInstruction(
 async function doGeneralInstrSingleton(data: any) {
   const insts: TransactionInstruction[] = [];
   addGeneralTransaction(insts, data);
-  await sendGeneralInstruction(insts, true);
+  await sendGeneralInstruction(insts, []);
 }
 
 async function initMallocData() {

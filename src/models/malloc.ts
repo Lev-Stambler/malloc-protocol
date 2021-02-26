@@ -10,7 +10,7 @@ import { TOKEN_PROGRAM_ID } from "../utils/ids";
 
 export const SPLIT_SUM = 1000;
 
-type PubKeyRep = Uint8Array;
+type PubKeyRep = number[];
 
 export interface BasketNode {
   name: string;
@@ -38,7 +38,7 @@ export interface WCallChainedNode {
 export interface Basket {
   calls: string[];
   splits: number[];
-  creator: PubKeyRep;
+  creator: PublicKey;
   input: string;
 }
 
@@ -47,10 +47,10 @@ export enum WCallTypes {
   Chained = "Chained",
 }
 
-export interface WCallSimple {
-  wcall: PubKeyRep;
+export interface WCallSimple<PubKeyType> {
+  wcall: PubKeyType;
   input: string;
-  associated_accounts: PubKeyRep[];
+  associated_accounts: PubKeyType[];
 }
 
 export function isWCallSimple(v: any) {
@@ -61,12 +61,12 @@ export function isWCallSimple(v: any) {
  * @info The first Pubkey is for the WCall's address, the second for the callback
  * basket
  */
-export interface WCallChained {
-  wcall: PubKeyRep;
+export interface WCallChained<PubKeyType> {
+  wcall: PubKeyType;
   callback_basket: string;
   input: string;
   output: string;
-  associated_accounts: PubKeyRep[];
+  associated_accounts: PubKeyType[];
 }
 
 export function isWCallChained(v: any) {
@@ -76,20 +76,20 @@ export function isWCallChained(v: any) {
 export interface MallocState {
   // name to public key
   wrapped_calls: {
-    [name: string]: { Chained: WCallChained } | { Simple: WCallSimple };
+    [name: string]: { Chained: WCallChained<PublicKey> } | { Simple: WCallSimple<PublicKey> };
   };
   baskets: {
     [name: string]: Basket;
   };
   // name to inputName
   supported_wrapped_call_inputs: {
-    [name: string]: PubKeyRep;
+    [name: string]: PublicKey;
   };
 }
 
 export interface RegisterCallArgs {
   call_name: String;
-  wcall: { Chained: WCallChained } | { Simple: WCallSimple };
+  wcall: { Chained: WCallChained<PubKeyRep> } | { Simple: WCallSimple<PubKeyRep> };
 }
 export interface CreateBasketArgs {
   name: string;

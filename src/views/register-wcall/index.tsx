@@ -13,6 +13,7 @@ import { Button, Input } from "antd";
 import { WCallTypes } from "../../models/malloc";
 import { useMalloc } from "../../contexts/malloc";
 import Grid from "antd/lib/card/Grid";
+import { serializePubkey } from "../../utils/utils";
 
 export const RegisterWCallView = () => {
   const malloc = useMalloc();
@@ -23,13 +24,13 @@ export const RegisterWCallView = () => {
       call_name: "Yo Mom",
       wcall: {
         Simple: {
-          wcall: (new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN")).toBuffer(),
+          wcall: serializePubkey(new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN")),
           input: "Wrapped Eth",
           associated_accounts: []
         }
       },
     }));
-    await malloc.sendMallocTransaction(insts);
+    await malloc.sendMallocTransaction(insts, []);
   }, [malloc]);
 
   return (
