@@ -432,7 +432,7 @@ export class Malloc {
       instructions,
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       // TODO ????
-      1000,
+      rent,
       this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
       this.progId,
       newAccounts
@@ -564,7 +564,7 @@ export class Malloc {
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, ...requiredAccountMetas],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ enactBasket: args })),
+      data: Buffer.from(JSON.stringify({ EnactBasket: args })),
     });
   }
 

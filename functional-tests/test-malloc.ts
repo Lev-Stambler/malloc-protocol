@@ -20,6 +20,8 @@ import { MallocState } from "../src/models/malloc";
 import { Malloc } from "../src/contexts/malloc-class";
 import { WalletProvider } from "../src/contexts/wallet";
 import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
+import { createTokenAccount } from "../src/actions";
+import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 const account = new Account();
 const data_account = new Account();
@@ -107,7 +109,9 @@ async function sendGeneralInstruction(
         "Adding instruction with data",
         new TextDecoder("utf-8").decode(inst.data),
         "And with account pubkeys",
-        inst.keys
+        inst.keys.map(key => {return {
+          "Pubkey": key.pubkey.toBase58()
+        }})
         // inst.keys.map(key => key.pubkey.toBase58())
       );
       tx.add(inst);
@@ -150,6 +154,12 @@ async function initAccounts(): Promise<Connection> {
   console.log("airdrop done");
   initDataAccount();
   return connection;
+}
+
+async function fundWithWSol(malloc_class: Malloc): Promise<PublicKey> {
+  const userInputPubKey = await Token.createWrappedNativeAccount(connection, TOKEN_PROGRAM_ID, account.publicKey, account, 100);
+  
+  return userInputPubKey
 }
 
 describe("Run a standard set of Malloc tests", async function () {
@@ -234,15 +244,24 @@ describe("Run a standard set of Malloc tests", async function () {
     const insts: TransactionInstruction[] = [];
     const basketNode = malloc_class.getCallGraph("Just buy just buy eth");
     console.log("Basket node", basketNode);
+    const fundedWSolAccount = await fundWithWSol(malloc_class);
+
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
-      new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"),
-      10000,
+      fundedWSolAccount,
+      await malloc_class.getEphemeralAccountRent(),
       100000
     );
-    console.log("Accounts:", accounts);
+    console.log("Accounts:", accounts.map(k => k.publicKey.toBase58()));
+    console.log(insts.length)
 
+    // await sendGeneralInstruction([insts[0]], [accounts[0],])
+    // await sendGeneralInstruction([insts[1]], [accounts[0]])
+    // await sendGeneralInstruction([insts[2]], [accounts[0], accounts[2]])
+    for (let i = 0; i < insts.length; i++) {
+      // await sendGeneralInstruction([insts[i]], accounts)
+    }
     await sendGeneralInstruction(insts, accounts)
 
     const data = (await getDataParsed()) as MallocState;
