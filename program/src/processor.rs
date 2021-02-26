@@ -11,6 +11,9 @@ use solana_program::{
 };
 use std::str::from_utf8;
 
+
+const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
 fn process_register_call(
     sender: &Pubkey,
     prog_state: &mut ProgState,
@@ -63,15 +66,19 @@ fn process_enact_basket<'a>(
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
     token_program_id: &Pubkey,
+    prog_account: AccountInfo<'a>,
+    spl_account: AccountInfo<'a>
 ) -> ProgramResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
     let basket = prog_state
         .baskets
         .get(&basket_name)
-        .ok_or(ProgramError::InvalidInstructionData)?;
+        .ok_or(ProgramError::Custom(144))?;
     let mut start_idx: usize = _start_idx;
 
     let malloc_input = &remaining_accounts[start_idx];
+    start_idx += 1;
+    let mint_account = &remaining_accounts[start_idx];
     let malloc_spl_account: spl_token::state::Account =
         Pack::unpack(malloc_input.data.borrow().as_ref())?;
     let amount_input = malloc_spl_account.amount;
@@ -104,15 +111,19 @@ fn process_enact_basket<'a>(
             token_program_id,
             malloc_input.key,
             split_account.key,
-            malloc_input.key,
-            &vec![malloc_input.owner],
+            prog_account.key,
+            &vec![malloc_input.key, prog_account.key],
             amount_approve,
         ).map_err(|e| ProgramError::Custom(10))?;
-        invoke(&approve_inst, &[
+        msg!("Calling invoke to approve");
+        let accounts_for_approve = &[
+            spl_account.to_owned(),
             malloc_input.to_owned(),
             split_account,
-            malloc_input.to_owned()
-        ]).map_err(|e| ProgramError::Custom(11));
+            prog_account.to_owned()
+        ];
+        invoke(&approve_inst, accounts_for_approve).map_err(|e| { ProgramError::Custom(11) })?;
+        msg!("Approved is invoked");
 
         let wcall = prog_state
             .wrapped_calls
@@ -133,7 +144,7 @@ fn process_enact_basket<'a>(
                     crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
                     remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input);
                 start_idx += idx_advance;
-                crate::wcall_handlers::enact_wcall_simple(wcall, &inp_accounts)
+                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)
             }
             WCall::Chained {
                 wcall,
@@ -142,10 +153,21 @@ fn process_enact_basket<'a>(
                 ..
             } => {
                 // + 2 because 1 for exec account 1 for split account
-                let inp_accounts = &remaining_accounts
-                    [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)];
-                let output_account = &inp_accounts[inp_accounts.len() - 1];
-                Ok(())
+                msg!(
+                    "Starting idx: {} remaining_accounts size: {}",
+                    start_idx,
+                    remaining_accounts.len()
+                );
+                let (mut inp_accounts, idx_advance) = 
+                    crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
+                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input);
+                start_idx += idx_advance;
+                // Push the output account
+                inp_accounts.push(remaining_accounts[start_idx].clone());
+                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)?;
+                process_enact_basket(prog_state, callback_basket.to_owned(),
+                    remaining_accounts, start_idx, 
+                    token_program_id, prog_account.to_owned(), spl_account.to_owned())
             }
         };
     }
@@ -239,11 +261,17 @@ pub fn process_instruction<'a>(
         }
         ProgInstruction::EnactBasket { basket_name } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
+            let prog_account = account_info_iter
+                .next()
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            let spl_account = account_info_iter
+                .next()
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
             let spl_token_prog = Pubkey::new(&vec![
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            process_enact_basket(&prog_state, basket_name, &accounts[2..], 0, &spl_token_prog)
+            process_enact_basket(&prog_state, basket_name, &accounts[4..], 0, &spl_token_prog, prog_account.to_owned(), spl_account.to_owned())
         }
         ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {

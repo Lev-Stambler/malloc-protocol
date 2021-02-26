@@ -9,6 +9,7 @@ solana airdrop 10
 echo "deploying $PWD/program/target/deploy/malloc.so" 
 solana program deploy "$PWD/program/target/deploy/malloc.so" > src/config/program_id.json
 
+yarn test-functional
 
 solana logs | grep "MALLOC LOG: "
 LOGGER=$?

@@ -30,6 +30,7 @@ import {
   MallocState,
   NewSupportedWCallInput,
 } from "../models/malloc";
+import { TOKEN_PROGRAM_ID } from "../utils/ids";
 import { serializePubkey, trimBuffer } from "../utils/utils";
 import { sendTransaction } from "./connection";
 import { WalletAdapter } from "./wallet";
@@ -383,6 +384,7 @@ export class Malloc {
   public setupInvokeCallGraph(
     basket: BasketNode,
     mallocInputPubkey: PublicKey,
+    mintPubkey: PublicKey,
     rent: number
   ): {
     accountMetas: AccountMeta[];
@@ -403,6 +405,12 @@ export class Malloc {
       isWritable: true,
       isSigner: true,
     });
+
+    accountMetas.push({
+      pubkey: mintPubkey,
+      isWritable: false,
+      isSigner: false,
+    })
 
     this.getAccountMetasFromCallGraphHelper(
       basket,
@@ -428,11 +436,12 @@ export class Malloc {
     amount: number
   ): Account[] {
     let newAccounts: Account[] = [];
+    const mintPubkey = this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey
     const mallocInputPubkey = createTokenAccount(
       instructions,
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       rent,
-      this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
+      mintPubkey,
       this.progId,
       newAccounts
     );
@@ -459,6 +468,7 @@ export class Malloc {
     const setupResult = this.setupInvokeCallGraph(
       basket,
       mallocInputPubkey,
+      mintPubkey,
       rent
     );
     if (!setupResult) {
@@ -572,8 +582,20 @@ export class Malloc {
       isSigner: true,
     };
 
+    const progMeta = {
+      isWritable: false,
+      pubkey: this.progId,
+      isSigner: false
+    }
+
+    const splMeta = {
+      isWritable: false,
+      pubkey: TOKEN_PROGRAM_ID,
+      isSigner: false
+    }
+
     return new TransactionInstruction({
-      keys: [progStateMeta, walletMeta, ...requiredAccountMetas],
+      keys: [progStateMeta, walletMeta, progMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
       data: Buffer.from(JSON.stringify({ EnactBasket: args })),
     });
