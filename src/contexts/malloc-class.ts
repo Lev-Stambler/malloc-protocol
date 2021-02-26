@@ -11,7 +11,7 @@ import {
   DEFAULT_TEMP_MEM_SPACE,
   findOrCreateAccountByMint,
 } from "../actions/account";
-import { approve } from "../models";
+import { approve, transfer } from "../models";
 import {
   RegisterCallArgs,
   WCallTypes,
@@ -436,14 +436,24 @@ export class Malloc {
       this.progId,
       newAccounts
     );
-    approve(
+    // Changed to transfer
+    // approve(
+    //   instructions,
+    //   [],
+    //   userInputPubKey,
+    //   this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
+    //   amount,
+    //   false,
+    //   mallocInputPubkey
+    // );
+    transfer(
       instructions,
       [],
       userInputPubKey,
-      this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
+      this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
+      mallocInputPubkey,
       amount,
-      false,
-      mallocInputPubkey
+      newAccounts
     );
 
     const setupResult = this.setupInvokeCallGraph(
@@ -496,7 +506,8 @@ export class Malloc {
           : WCallTypes.Simple;
         switch (callDescriptorType) {
           case WCallTypes.Chained: {
-            const callData = (callDescriptor as any).Chained as WCallChained<PublicKey>;
+            const callData = (callDescriptor as any)
+              .Chained as WCallChained<PublicKey>;
             return {
               name: callName,
               wcall: callData.wcall,
@@ -507,7 +518,8 @@ export class Malloc {
           }
           default: {
             // "Simple"
-            const callData = (callDescriptor as any).Simple as WCallSimple<PublicKey>;
+            const callData = (callDescriptor as any)
+              .Simple as WCallSimple<PublicKey>;
             return {
               name: callName,
               input: callData.input,

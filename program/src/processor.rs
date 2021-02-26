@@ -56,10 +56,10 @@ fn process_new_supported_wrapped_call_input(
     Ok(())
 }
 
-fn process_enact_basket(
+fn process_enact_basket<'a>(
     prog_state: &ProgState,
     basket_name: String,
-    remaining_accounts: &[AccountInfo],
+    remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
     token_program_id: &Pubkey,
 ) -> ProgramResult {
@@ -69,6 +69,7 @@ fn process_enact_basket(
         .get(&basket_name)
         .ok_or(ProgramError::InvalidInstructionData)?;
     let mut start_idx: usize = _start_idx;
+
     let malloc_input = &remaining_accounts[start_idx];
     let malloc_spl_account: spl_token::state::Account =
         Pack::unpack(malloc_input.data.borrow().as_ref())?;
@@ -122,17 +123,10 @@ fn process_enact_basket(
                     start_idx,
                     remaining_accounts.len()
                 );
-                // TODO: check to ensure associated_accounts_pubkeys is correct
-                //
-                // + 2 because 1 for exec account 1 for split account
-                //let mut inp_accounts: Vec<AccountInfo> = Vec::with_capacity(associated_accounts_pubkeys.len() + 2);
-
-                //inp_accounts.clone_from_slice(&remaining_accounts
-                //   [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)]);
-                let inp_accounts = &(remaining_accounts
-                    [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)])
-                    .to_vec();
-                start_idx += associated_accounts_pubkeys.len() + 2;
+                let (inp_accounts, idx_advance) = 
+                    crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
+                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input);
+                start_idx += idx_advance;
                 crate::wcall_handlers::enact_wcall_simple(wcall, &inp_accounts)
             }
             WCall::Chained {
@@ -186,9 +180,9 @@ fn process_create_basket(
 // TODO: where does this second account come from? Maybe there has to be an init
 // instruction which creates a new account with the _program_id as the owner? (Or maybe there is j one made on a frontend
 // and thats j what is used)
-pub fn process_instruction(
+pub fn process_instruction<'a>(
     _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &'a [AccountInfo<'a>],
     input: &[u8],
 ) -> ProgramResult {
     /* let account_info_iter = &mut accounts.iter();
@@ -220,16 +214,6 @@ pub fn process_instruction(
     let account_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-
-    //msg!("MALLOC LOG: account_info_pubkey = {}", account_info.key);
-
-    //if let Some(address) = account_info.signer_key() {
-    //    if address != account_info.owner {
-    //        return Err(ProgramError::MissingRequiredSignature);
-    //    }
-    //} else {
-    //    return Err(ProgramError::MissingRequiredSignature);
-    //}
 
     match instruction {
         ProgInstruction::RegisterCall {

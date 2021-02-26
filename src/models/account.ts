@@ -7,6 +7,7 @@ import {
 
 import { AccountInfo as TokenAccountInfo, Token } from "@solana/spl-token";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
+import { sign } from "crypto";
 
 export interface TokenAccount {
   pubkey: PublicKey;
@@ -46,4 +47,27 @@ export function approve(
   }
 
   return transferAuthority;
+}
+
+export function transfer(
+  instructions: TransactionInstruction[],
+  cleanupInstructions: TransactionInstruction[],
+  account: PublicKey,
+  owner: PublicKey,
+  to: PublicKey,
+  amount: number,
+  signers: Account[]
+) {
+  const tokenProgram = TOKEN_PROGRAM_ID;
+
+  instructions.push(
+    Token.createTransferInstruction(
+      tokenProgram,
+      account,
+      to,
+      owner,
+      signers,
+      amount
+    )
+  );
 }

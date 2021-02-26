@@ -295,6 +295,7 @@ describe("Run a standard set of Malloc tests", async function () {
     assert(data.wrapped_calls["Just buy some more Eth"]);
     assert(data.supported_wrapped_call_inputs["WSol"]);
     assert(data.baskets["Just buy just buy eth"]);
+    console.log(TOKEN_PROGRAM_ID.toBase58())
     const tok = new Token(connection, WRAPPED_SOL_MINT, TOKEN_PROGRAM_ID, account);
     const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY)
     console.log(iGetMoneyInfo.amount)
