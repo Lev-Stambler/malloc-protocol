@@ -63,7 +63,7 @@ fn process_enact_basket(
     _start_idx: usize,
     token_program_id: &Pubkey,
 ) -> ProgramResult {
-    msg!("MALLOC: ENACTING BASKET {}", basket_name);
+    msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
     let basket = prog_state
         .baskets
         .get(&basket_name)

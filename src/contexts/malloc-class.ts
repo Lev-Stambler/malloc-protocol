@@ -309,7 +309,7 @@ export class Malloc {
       accountMetas.push({
         pubkey: call.wcall,
         isSigner: false,
-        isWritable: false,
+        isWritable: true,
       });
 
       const callData = this.getStateCallFromNode(call);

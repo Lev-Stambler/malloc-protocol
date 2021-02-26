@@ -19,6 +19,7 @@ pub fn enact_wcall_simple(
     let account_metas: Vec<AccountMeta> = Vec::new();
     let inact_inst = Instruction::new(program_id.to_owned(), &data, account_metas);
     let account_infos: Vec<AccountInfo> = vec![];
+    solana_program::msg!("MALLOC LOG: calling {:?}", program_id);
     invoke(&inact_inst, &inp_accounts);
     Ok(())
 }

@@ -156,8 +156,8 @@ async function initAccounts(): Promise<Connection> {
   return connection;
 }
 
-async function fundWithWSol(malloc_class: Malloc): Promise<PublicKey> {
-  const userInputPubKey = await Token.createWrappedNativeAccount(connection, TOKEN_PROGRAM_ID, account.publicKey, account, 100);
+async function fundWithWSol(amount: number): Promise<PublicKey> {
+  const userInputPubKey = await Token.createWrappedNativeAccount(connection, TOKEN_PROGRAM_ID, account.publicKey, account, amount);
   
   return userInputPubKey
 }
@@ -245,14 +245,15 @@ describe("Run a standard set of Malloc tests", async function () {
     const insts: TransactionInstruction[] = [];
     const basketNode = malloc_class.getCallGraph("Just buy just buy eth");
     console.log("Basket node", basketNode);
-    const fundedWSolAccount = await fundWithWSol(malloc_class);
+    const amount = 100 * 1000
+    const fundedWSolAccount = await fundWithWSol(amount + 10);
 
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
       fundedWSolAccount,
       await malloc_class.getEphemeralAccountRent(),
-      100000
+      amount
     );
     console.log("Accounts:", accounts.map(k => k.publicKey.toBase58()));
     console.log(insts.length)
