@@ -23,6 +23,10 @@ import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
 import { createTokenAccount } from "../src/actions";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
+const SIMPLE_PASS_THROUGH_WCALL = new PublicKey(
+  "G3bXM8ioQhAGJfCyQL9v6W4x1FVcFjGgtSgRiwkfYa4a"
+);
+
 const account = new Account();
 const data_account = new Account();
 let connection: Connection;
@@ -109,9 +113,11 @@ async function sendGeneralInstruction(
         "Adding instruction with data",
         new TextDecoder("utf-8").decode(inst.data),
         "And with account pubkeys",
-        inst.keys.map(key => {return {
-          "Pubkey": key.pubkey.toBase58()
-        }})
+        inst.keys.map((key) => {
+          return {
+            Pubkey: key.pubkey.toBase58(),
+          };
+        })
         // inst.keys.map(key => key.pubkey.toBase58())
       );
       tx.add(inst);
@@ -157,9 +163,15 @@ async function initAccounts(): Promise<Connection> {
 }
 
 async function fundWithWSol(amount: number): Promise<PublicKey> {
-  const userInputPubKey = await Token.createWrappedNativeAccount(connection, TOKEN_PROGRAM_ID, account.publicKey, account, amount);
-  
-  return userInputPubKey
+  const userInputPubKey = await Token.createWrappedNativeAccount(
+    connection,
+    TOKEN_PROGRAM_ID,
+    account.publicKey,
+    account,
+    amount
+  );
+
+  return userInputPubKey;
 }
 
 describe("Run a standard set of Malloc tests", async function () {
@@ -179,6 +191,13 @@ describe("Run a standard set of Malloc tests", async function () {
   });
   it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
     let instsDummy = [];
+    const malloc_class = new Malloc(
+      data_account.publicKey,
+      progId,
+      connection,
+      undefined,
+      {}
+    );
     // await doGeneralInstrSingleton({
 
     // })
@@ -188,64 +207,66 @@ describe("Run a standard set of Malloc tests", async function () {
         input_address: [...WRAPPED_SOL_MINT.toBuffer()],
       },
     });
+    // await doGeneralInstrSingleton({
+    //   RegisterCall: {
+    //     call_name: "Just buy some more Eth",
+    //     // dummy public key
+    //     wcall_enum: {
+    //       Simple: {
+    //         wcall: serializePubkey(
+    //           new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
+    //         ),
+    //         input: "WSol",
+    //         associated_accounts: [],
+    //       },
+    //     },
+    //   },
+    // });
+    const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
+    await malloc_class.refresh();
+    const associatedAccountSigners: Account[] = []
+    const I_GET_THE_MONEY = createTokenAccount(
+      createWCallAssociatedAccountsInsts,
+      account.publicKey,
+      await malloc_class.getEphemeralAccountRent(),
+      WRAPPED_SOL_MINT,
+      account.publicKey,
+      associatedAccountSigners
+    );
+    await sendGeneralInstruction(createWCallAssociatedAccountsInsts, associatedAccountSigners)
     await doGeneralInstrSingleton({
       RegisterCall: {
-        call_name: "Just buy some more Eth",
+        call_name: "takes money from one account to another",
         // dummy public key
         wcall_enum: {
           Simple: {
-            wcall: serializePubkey(
-              new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
-            ),
+            wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
             input: "WSol",
-            associated_accounts: [],
-          },
-        },
-      },
-    });
-    await doGeneralInstrSingleton({
-      RegisterCall: {
-        call_name:
-          "Just buy some more Eth part 2, return of the electric bogoloo",
-        // dummy public key
-        wcall_enum: {
-          Simple: {
-            wcall: serializePubkey(
-              new PublicKey("3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
-            ),
-            input: "WSol",
-            associated_accounts: [],
+            associated_accounts: [serializePubkey(I_GET_THE_MONEY)],
           },
         },
       },
     });
     await doGeneralInstrSingleton({
       CreateBasket: {
-        name: "Just buy just buy eth",
+        name: "Just a simp",
         calls: [
-          "Just buy some more Eth part 2, return of the electric bogoloo",
-          "Just buy some more Eth",
+          "takes money from one account to another",
+          // "Just buy some more Eth",
         ],
-        splits: [500, 500],
+        splits: [1000,],
         input: "WSol",
       },
     });
 
-    const malloc_class = new Malloc(
-      data_account.publicKey,
-      progId,
-      connection,
-      undefined,
-      {}
-    );
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
     await malloc_class.refresh();
     const rent = await malloc_class.getEphemeralAccountRent();
     const insts: TransactionInstruction[] = [];
-    const basketNode = malloc_class.getCallGraph("Just buy just buy eth");
+    const basketNode = malloc_class.getCallGraph("Just a simp");
     console.log("Basket node", basketNode);
-    const amount = 100 * 1000
+    const amount = 100 * 1000;
     const fundedWSolAccount = await fundWithWSol(amount + 10);
 
     const accounts = malloc_class.invokeCallGraph(
@@ -255,8 +276,11 @@ describe("Run a standard set of Malloc tests", async function () {
       await malloc_class.getEphemeralAccountRent(),
       amount
     );
-    console.log("Accounts:", accounts.map(k => k.publicKey.toBase58()));
-    console.log(insts.length)
+    console.log(
+      "Accounts:",
+      accounts.map((k) => k.publicKey.toBase58())
+    );
+    console.log(insts.length);
 
     // await sendGeneralInstruction([insts[0]], [accounts[0],])
     // await sendGeneralInstruction([insts[1]], [accounts[0]])
@@ -264,13 +288,16 @@ describe("Run a standard set of Malloc tests", async function () {
     for (let i = 0; i < insts.length; i++) {
       // await sendGeneralInstruction([insts[i]], accounts)
     }
-    await sendGeneralInstruction(insts, accounts)
+    await sendGeneralInstruction(insts, accounts);
 
     const data = (await getDataParsed()) as MallocState;
     console.log("baskets:", data.baskets);
     assert(data.wrapped_calls["Just buy some more Eth"]);
     assert(data.supported_wrapped_call_inputs["WSol"]);
     assert(data.baskets["Just buy just buy eth"]);
+    const tok = new Token(connection, WRAPPED_SOL_MINT, TOKEN_PROGRAM_ID, account);
+    const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY)
+    console.log(iGetMoneyInfo.amount)
   });
 });
 // pub enum WCall {

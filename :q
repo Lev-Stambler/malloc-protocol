@@ -21,9 +21,7 @@ pub fn enact_wcall_simple(
     let account_infos: Vec<AccountInfo> = vec![];
     solana_program::msg!("MALLOC LOG: calling {:?}", program_id);
     solana_program::msg!("MALLOC LOG: calling with {} number of accounts", inp_accounts.len());
-    solana_program::msg!("MALLOC LOG: calling with {:?} {:?} {:?}", inp_accounts[0].key, inp_accounts[1].key, inp_accounts[2].key);
-
-    invoke(&inact_inst, inp_accounts)?;
+    invoke(&inact_inst, &inp_accounts);
     Ok(())
 }
 

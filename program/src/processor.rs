@@ -76,6 +76,7 @@ fn process_enact_basket(
     let mut amount_remaining = amount_input;
 
     start_idx += 1;
+    msg!("Starting idx: {} remaining_accounts size: {}", start_idx, remaining_accounts.len());
     for i in 0..basket.calls.len() {
         let call_name = basket.calls[i].clone();
         let split_amount = basket.splits[i];
@@ -92,6 +93,7 @@ fn process_enact_basket(
         amount_remaining -= amount_approve;
         let split_account = &remaining_accounts[start_idx + 1];
         // The owner of the source must be present in the signer
+        // TODO: invoke
         let approve_inst = spl_token::instruction::approve(
             token_program_id,
             malloc_input.key,
@@ -111,11 +113,18 @@ fn process_enact_basket(
                 associated_accounts: associated_accounts_pubkeys,
                 ..
             } => {
+                msg!("Starting idx: {} remaining_accounts size: {}", start_idx, remaining_accounts.len());
+                // TODO: check to ensure associated_accounts_pubkeys is correct
+                //
                 // + 2 because 1 for exec account 1 for split account
+                //let mut inp_accounts: Vec<AccountInfo> = Vec::with_capacity(associated_accounts_pubkeys.len() + 2);
+
+                //inp_accounts.clone_from_slice(&remaining_accounts
+                //   [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)]);
                 let inp_accounts = &remaining_accounts
-                    [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)];
+                   [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)].to_vec();
                 start_idx += associated_accounts_pubkeys.len() + 2;
-                crate::wcall_handlers::enact_wcall_simple(wcall, inp_accounts)
+                crate::wcall_handlers::enact_wcall_simple(wcall, &inp_accounts)
             }
             WCall::Chained {
                 wcall,
