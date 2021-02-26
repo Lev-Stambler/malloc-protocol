@@ -92,7 +92,7 @@ export class Malloc {
           isSigner: false,
         },
         {
-          isWritable: false,
+          isWritable: true,
           pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
           isSigner: true,
         },
@@ -431,7 +431,6 @@ export class Malloc {
     const mallocInputPubkey = createTokenAccount(
       instructions,
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
-      // TODO ????
       rent,
       this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
       this.progId,

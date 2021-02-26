@@ -30,7 +30,7 @@ export const RegisterWCallView = () => {
         }
       },
     }));
-    await malloc.sendMallocTransaction(insts, []);
+    // await malloc.sendMallocTransaction(insts, []);
   }, [malloc]);
 
   return (

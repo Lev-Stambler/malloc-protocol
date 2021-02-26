@@ -241,6 +241,7 @@ describe("Run a standard set of Malloc tests", async function () {
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
     await malloc_class.refresh();
+    const rent = await malloc_class.getEphemeralAccountRent();
     const insts: TransactionInstruction[] = [];
     const basketNode = malloc_class.getCallGraph("Just buy just buy eth");
     console.log("Basket node", basketNode);
