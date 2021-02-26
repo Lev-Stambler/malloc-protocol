@@ -442,7 +442,7 @@ export class Malloc {
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       rent,
       mintPubkey,
-      this.progId,
+      this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       newAccounts
     );
     // Changed to transfer
@@ -582,12 +582,6 @@ export class Malloc {
       isSigner: true,
     };
 
-    const progMeta = {
-      isWritable: false,
-      pubkey: this.progId,
-      isSigner: false
-    }
-
     const splMeta = {
       isWritable: false,
       pubkey: TOKEN_PROGRAM_ID,
@@ -595,7 +589,7 @@ export class Malloc {
     }
 
     return new TransactionInstruction({
-      keys: [progStateMeta, walletMeta, progMeta, splMeta, ...requiredAccountMetas],
+      keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
       data: Buffer.from(JSON.stringify({ EnactBasket: args })),
     });

@@ -66,8 +66,8 @@ fn process_enact_basket<'a>(
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
     token_program_id: &Pubkey,
-    prog_account: AccountInfo<'a>,
-    spl_account: AccountInfo<'a>
+    spl_account: AccountInfo<'a>,
+    caller_account: AccountInfo<'a>
 ) -> ProgramResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
     let basket = prog_state
@@ -111,8 +111,8 @@ fn process_enact_basket<'a>(
             token_program_id,
             malloc_input.key,
             split_account.key,
-            prog_account.key,
-            &vec![malloc_input.key, prog_account.key],
+            caller_account.key,
+            &vec![malloc_input.key, caller_account.key],
             amount_approve,
         ).map_err(|e| ProgramError::Custom(10))?;
         msg!("Calling invoke to approve");
@@ -120,7 +120,7 @@ fn process_enact_basket<'a>(
             spl_account.to_owned(),
             malloc_input.to_owned(),
             split_account,
-            prog_account.to_owned()
+            caller_account.to_owned()
         ];
         invoke(&approve_inst, accounts_for_approve).map_err(|e| { ProgramError::Custom(11) })?;
         msg!("Approved is invoked");
@@ -167,7 +167,7 @@ fn process_enact_basket<'a>(
                 crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)?;
                 process_enact_basket(prog_state, callback_basket.to_owned(),
                     remaining_accounts, start_idx, 
-                    token_program_id, prog_account.to_owned(), spl_account.to_owned())
+                    token_program_id, spl_account.to_owned(), caller_account.to_owned())
             }
         };
     }
@@ -261,9 +261,6 @@ pub fn process_instruction<'a>(
         }
         ProgInstruction::EnactBasket { basket_name } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
-            let prog_account = account_info_iter
-                .next()
-                .ok_or(ProgramError::NotEnoughAccountKeys)?;
             let spl_account = account_info_iter
                 .next()
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
@@ -271,7 +268,7 @@ pub fn process_instruction<'a>(
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            process_enact_basket(&prog_state, basket_name, &accounts[4..], 0, &spl_token_prog, prog_account.to_owned(), spl_account.to_owned())
+            process_enact_basket(&prog_state, basket_name, &accounts[3..], 0, &spl_token_prog, spl_account.to_owned(), account_info.to_owned())
         }
         ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {
