@@ -450,7 +450,7 @@ export class Malloc {
       instructions,
       [],
       userInputPubKey,
-      this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey,
+      this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       mallocInputPubkey,
       amount,
       newAccounts
