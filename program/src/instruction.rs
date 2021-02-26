@@ -80,20 +80,20 @@ pub enum ProgInstruction {
         name: BasketName,
         calls: Vec<WCallName>,
         splits: Vec<u64>,
-        input: WCallInputName
+        input: WCallInputName,
     },
     ///
     /// Accounts expected:
     /// program_info, malloc_input, w[0][0]' executable, w[0][0] split account,
     /// w[0][0] associated accounts, w[0][0] output account if chained, w[0][1] split account
-    /// w[0][1]'s associated account, w[0][1] out if chained, (w[0][2]... if w[0][1]) chained,.. 
+    /// w[0][1]'s associated account, w[0][1] out if chained, (w[0][2]... if w[0][1]) chained,..
     /// w[1][0]...
     EnactBasket {
         basket_name: BasketName,
     },
     NewSupportedWCallInput {
         input_name: String,
-        input_address: Pubkey
+        input_address: Pubkey,
     },
     InitMalloc {},
 }

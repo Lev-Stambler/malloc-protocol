@@ -76,7 +76,11 @@ fn process_enact_basket(
     let mut amount_remaining = amount_input;
 
     start_idx += 1;
-    msg!("Starting idx: {} remaining_accounts size: {}", start_idx, remaining_accounts.len());
+    msg!(
+        "Starting idx: {} remaining_accounts size: {}",
+        start_idx,
+        remaining_accounts.len()
+    );
     for i in 0..basket.calls.len() {
         let call_name = basket.calls[i].clone();
         let split_amount = basket.splits[i];
@@ -113,7 +117,11 @@ fn process_enact_basket(
                 associated_accounts: associated_accounts_pubkeys,
                 ..
             } => {
-                msg!("Starting idx: {} remaining_accounts size: {}", start_idx, remaining_accounts.len());
+                msg!(
+                    "Starting idx: {} remaining_accounts size: {}",
+                    start_idx,
+                    remaining_accounts.len()
+                );
                 // TODO: check to ensure associated_accounts_pubkeys is correct
                 //
                 // + 2 because 1 for exec account 1 for split account
@@ -121,8 +129,9 @@ fn process_enact_basket(
 
                 //inp_accounts.clone_from_slice(&remaining_accounts
                 //   [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)]);
-                let inp_accounts = &remaining_accounts
-                   [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)].to_vec();
+                let inp_accounts = &(remaining_accounts
+                    [start_idx..(associated_accounts_pubkeys.len() + start_idx + 2)])
+                    .to_vec();
                 start_idx += associated_accounts_pubkeys.len() + 2;
                 crate::wcall_handlers::enact_wcall_simple(wcall, &inp_accounts)
             }
@@ -182,15 +191,26 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     input: &[u8],
 ) -> ProgramResult {
+    /* let account_info_iter = &mut accounts.iter();
+    for (i, account) in account_info_iter.enumerate() {
+        msg!(
+            "account {}: pubkey={}, is_signer={}, is_writable={}",
+            i,
+            account.key,
+            account.is_signer,
+            account.is_writable,
+        );
+    }
+    */
     let account_info_iter = &mut accounts.iter();
     let program_info = account_info_iter
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    msg!("MALLOC LOG: program_info_pubkey = {}", program_info.key);
+    //msg!("MALLOC LOG: program_info_pubkey = {}", program_info.key);
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
-        msg!("MALLOC LOG: InitMalloc");
+        //msg!("MALLOC LOG: InitMalloc");
         let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
         return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
     }
@@ -201,7 +221,7 @@ pub fn process_instruction(
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    msg!("MALLOC LOG: account_info_pubkey = {}", account_info.key);
+    //msg!("MALLOC LOG: account_info_pubkey = {}", account_info.key);
 
     //if let Some(address) = account_info.signer_key() {
     //    if address != account_info.owner {
