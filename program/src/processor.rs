@@ -3,6 +3,7 @@ use crate::instruction::{self, Basket, ProgInstruction, ProgState, WCall};
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    program::invoke,
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack},
@@ -96,7 +97,7 @@ fn process_enact_basket<'a>(
             return Err(ProgramError::InvalidInstructionData);
         }
         amount_remaining -= amount_approve;
-        let split_account = &remaining_accounts[start_idx + 1];
+        let split_account = remaining_accounts[start_idx + 1].to_owned();
         // The owner of the source must be present in the signer
         // TODO: invoke
         let approve_inst = spl_token::instruction::approve(
@@ -106,7 +107,12 @@ fn process_enact_basket<'a>(
             malloc_input.key,
             &vec![malloc_input.owner],
             amount_approve,
-        );
+        ).map_err(|e| ProgramError::Custom(10))?;
+        invoke(&approve_inst, &[
+            malloc_input.to_owned(),
+            split_account,
+            malloc_input.to_owned()
+        ]).map_err(|e| ProgramError::Custom(11));
 
         let wcall = prog_state
             .wrapped_calls
