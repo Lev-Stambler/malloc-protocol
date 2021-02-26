@@ -19,6 +19,7 @@ import { MallocState } from "../src/models/malloc";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
 import { WalletProvider } from "../src/contexts/wallet";
+import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
 
 const account = new Account();
 const data_account = new Account();
@@ -132,7 +133,7 @@ async function sendGeneralInstruction(
 async function doGeneralInstrSingleton(data: any) {
   const insts: TransactionInstruction[] = [];
   addGeneralTransaction(insts, data);
-  await sendGeneralInstruction(insts);
+  await sendGeneralInstruction(insts, true);
 }
 
 async function initMallocData() {
@@ -167,14 +168,14 @@ describe("Run a standard set of Malloc tests", async function () {
     }
   });
   it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
+    let instsDummy = [];
+    // await doGeneralInstrSingleton({
+
+    // })
     await doGeneralInstrSingleton({
       NewSupportedWCallInput: {
-        input_name: "Wrapped Eth",
-        input_address: [
-          ...new PublicKey(
-            "2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk"
-          ).toBuffer(),
-        ],
+        input_name: "WSol",
+        input_address: [...WRAPPED_SOL_MINT.toBuffer()],
       },
     });
     await doGeneralInstrSingleton({
@@ -186,7 +187,7 @@ describe("Run a standard set of Malloc tests", async function () {
             wcall: serializePubkey(
               new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
-            input: "Wrapped Eth",
+            input: "WSol",
             associated_accounts: [],
           },
         },
@@ -202,7 +203,7 @@ describe("Run a standard set of Malloc tests", async function () {
             wcall: serializePubkey(
               new PublicKey("3FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
             ),
-            input: "Wrapped Eth",
+            input: "WSol",
             associated_accounts: [],
           },
         },
@@ -216,7 +217,7 @@ describe("Run a standard set of Malloc tests", async function () {
           "Just buy some more Eth",
         ],
         splits: [500, 500],
-        input: "Wrapped Eth"
+        input: "WSol",
       },
     });
 
@@ -227,12 +228,12 @@ describe("Run a standard set of Malloc tests", async function () {
       undefined,
       {}
     );
-    malloc_class.setUserPubKeyAlt(account.publicKey)
+    malloc_class.setUserPubKeyAlt(account.publicKey);
 
-    await malloc_class.refresh()
+    await malloc_class.refresh();
     const insts: TransactionInstruction[] = [];
-    const basketNode = malloc_class.getCallGraph("Just buy just buy eth")
-    console.log("Basket node", basketNode)
+    const basketNode = malloc_class.getCallGraph("Just buy just buy eth");
+    console.log("Basket node", basketNode);
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
@@ -247,7 +248,7 @@ describe("Run a standard set of Malloc tests", async function () {
     const data = (await getDataParsed()) as MallocState;
     console.log("baskets:", data.baskets);
     assert(data.wrapped_calls["Just buy some more Eth"]);
-    assert(data.supported_wrapped_call_inputs["Wrapped Eth"]);
+    assert(data.supported_wrapped_call_inputs["WSol"]);
     assert(data.baskets["Just buy just buy eth"]);
   });
 });

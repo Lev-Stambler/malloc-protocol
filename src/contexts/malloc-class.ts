@@ -6,7 +6,11 @@ import {
   AccountMeta,
 } from "@solana/web3.js";
 import { sign } from "crypto";
-import { createTokenAccount, DEFAULT_TEMP_MEM_SPACE } from "../actions/account";
+import {
+  createTokenAccount,
+  DEFAULT_TEMP_MEM_SPACE,
+  findOrCreateAccountByMint,
+} from "../actions/account";
 import { approve } from "../models";
 import {
   RegisterCallArgs,
@@ -74,7 +78,7 @@ export class Malloc {
       wcall = args.wcall as { Chained: WCallChained };
       wcall.Chained.wcall = wcall.Chained.wcall;
     }
-      
+
     const sending_args = {
       call_name: args.call_name,
       wcall_enum: wcall,
@@ -126,12 +130,27 @@ export class Malloc {
     );
   }
 
+  private convertObjToHavePubKey(state: any) {
+    const keys = Object.keys(state);
+    for (let i = 0; i < keys.length; i++) {
+      if (
+        state[keys[i]] instanceof Array &&
+        state[keys[i]].length === 32 &&
+        typeof state[keys[i]][0] === "number"
+      ) {
+        state[keys[i]] = new PublicKey(state[keys[i]]);
+      } else if (typeof state[keys[i]] === "object") {
+        this.convertObjToHavePubKey(state[keys[i]]);
+      }
+    }
+  }
+
   // TODO: if you are a PublicKey type convert from the number[] PublicKey
   private parseAccountState(data: Buffer): MallocState {
     const buf = trimBuffer(data);
     const bufString = buf.toString();
     const state = JSON.parse(bufString);
-    
+    this.convertObjToHavePubKey(state);
     console.log(state);
     return state;
   }
@@ -192,8 +211,8 @@ export class Malloc {
               Simple: {
                 wcall: callNode.wcall.toBuffer(),
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts.map(k => k.toBuffer()),
-              }
+                associated_accounts: callNode.associateAccounts,
+              },
             },
           })
         );
@@ -413,11 +432,7 @@ export class Malloc {
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
       // TODO ????
       1000,
-      new PublicKey(
-        (this.state?.supported_wrapped_call_inputs[
-          basket.input
-        ] as any)
-      ),
+      this.state?.supported_wrapped_call_inputs[basket.input],
       this.progId,
       newAccounts
     );
