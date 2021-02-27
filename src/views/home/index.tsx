@@ -32,6 +32,21 @@ export const HomeView = () => {
     };
   }, [marketEmitter, midPriceInUSD, tokenMap]);
 
+  // TODO: have a better way to tell if wallet is connected
+  if (balance === '--') {
+    return (
+      <Row gutter={[16, 16]} align="middle">
+        <Col span={24}>
+          <h2>Please connect a solana wallet</h2>
+        </Col>
+
+        <Col span={12}>
+          <ConnectButton />
+        </Col>
+      </Row>
+    );
+  }
+
   return (
     <Row gutter={[16, 16]} align="middle">
       <Col span={24}>
@@ -40,19 +55,6 @@ export const HomeView = () => {
 
       <Col span={12}>
         <ConnectButton />
-      </Col>
-      <Col span={12}>
-        <Link to="/faucet">
-          <Button>Faucet</Button>
-        </Link>
-      </Col>
-      <Col span={12}>
-        <Link to="/register-wcall">
-          <Button>Register Wcall</Button>
-        </Link>
-      </Col>
-      <Col span={24}>
-        <div className="builton" />
       </Col>
     </Row>
   );
