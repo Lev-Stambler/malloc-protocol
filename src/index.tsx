@@ -2,16 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
-import createEngine, { DiagramEngine } from "@projectstorm/react-diagrams";
 import * as serviceWorker from "./serviceWorker";
-
-declare global {
-  interface Window {
-    diagramEngine: DiagramEngine;
-  }
-}
-
-window.diagramEngine = createEngine();
 
 ReactDOM.render(
   <React.StrictMode>

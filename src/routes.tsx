@@ -5,6 +5,7 @@ import { ConnectionProvider } from "./contexts/connection";
 import { AccountsProvider } from "./contexts/accounts";
 import { MarketProvider } from "./contexts/market";
 import { MallocProvider } from "./contexts/malloc";
+import { DiagramProvider } from "./contexts/diagram";
 import { AppLayout } from "./components/Layout";
 
 import { FaucetView, HomeView, RegisterWCallView, CallGraphView } from "./views";
@@ -18,14 +19,16 @@ export function Routes() {
             <AccountsProvider>
               <MallocProvider>
                 <MarketProvider>
-                  <AppLayout>
-                    <Switch>
-                      <Route exact path="/" component={() => <HomeView />} />
-                      <Route exact path="/faucet" children={<FaucetView />} />
-                      <Route exact path="/graph/:topLevelBasketId" children={<CallGraphView />} />
-                      <Route exact path="/register-wcall" children={<RegisterWCallView />} />
-                    </Switch>
-                  </AppLayout>
+                  <DiagramProvider>
+                    <AppLayout>
+                      <Switch>
+                        <Route exact path="/" component={() => <HomeView />} />
+                        <Route exact path="/faucet" children={<FaucetView />} />
+                        <Route exact path="/graph/:topLevelBasketId" children={<CallGraphView />} />
+                        <Route exact path="/register-wcall" children={<RegisterWCallView />} />
+                      </Switch>
+                    </AppLayout>
+                  </DiagramProvider>
                 </MarketProvider>
               </MallocProvider>
             </AccountsProvider>

@@ -1,17 +1,11 @@
-import { useMalloc } from "../../contexts/malloc"
-import React, { useCallback } from 'react';
+import { useMalloc } from "../../contexts/malloc";
+import { useDiagram } from "../../contexts/diagram";
+import React, { useEffect } from 'react';
 import { DiagramEngine, DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
 import { CanvasWidget } from '@projectstorm/react-canvas-core';
 import { useParams } from "react-router-dom";
 
-export function CallGraphView() {
-  let { topLevelBasketId } = useParams() as any;
-  const malloc = useMalloc();
-
-  const model = new DiagramModel();
-
-  const isNew = topLevelBasketId === "new";
-  // node 1
+function drawGraph(model: DiagramModel) {
   const node1 = new DefaultNodeModel({
       name: 'Node 1',
       color: 'rgb(0,192,255)',
@@ -30,14 +24,28 @@ export function CallGraphView() {
   const link = port1.link<DefaultLinkModel>(port2);
 
   model.addAll(node1, node2, link);
+}
 
-  window.diagramEngine.setModel(model);
+export function CallGraphView() {
+  const { topLevelBasketId } = useParams() as any;
+  const { engine, model, clearModel } = useDiagram();
+
+  useEffect(() => {
+    clearModel()
+  }, [topLevelBasketId, clearModel])
+ 
+  useEffect(() => {
+    drawGraph(model)  
+  }, [model]);
+
+  const malloc = useMalloc();
+  const isNew = topLevelBasketId === "new";
  
   return (
     <div className="flex flex-row h-full justify-around">
       <div className="flex flex-grow flex-col">
         <div className="flex-grow">
-          <CanvasWidget className="w-full h-full" engine={window.diagramEngine} />
+          <CanvasWidget className="w-full h-full" engine={engine} />
         </div> 
       </div>
     </div>
