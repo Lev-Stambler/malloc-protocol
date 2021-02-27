@@ -36,7 +36,7 @@ export const HomeView = () => {
     return (
       <div className="flex flex-row justify-around">
         <div className="flex flex-col">
-          <h2>Please connect a solana wallet</h2>
+          <h2>Please connect a Solana wallet to continue.</h2>
         </div>
       </div>
     );

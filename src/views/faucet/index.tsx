@@ -3,15 +3,15 @@ import { useConnection } from "../../contexts/connection";
 import { useWallet } from "../../contexts/wallet";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { notify } from "../../utils/notifications";
-import { ConnectButton } from "./../../components/ConnectButton";
+import { Button } from "antd"
 import { LABELS } from "../../constants";
 
 export const FaucetView = () => {
   const connection = useConnection();
-  const { publicKey } = useWallet();
+  const { connected, publicKey } = useWallet();
 
   const airdrop = useCallback(() => {
-    if (!publicKey) {
+    if (!connected || !publicKey) {
       return;
     }
 
@@ -23,15 +23,22 @@ export const FaucetView = () => {
     });
   }, [publicKey, connection]);
 
+  let faucetInfo = LABELS.FAUCET_INFO;
+  if (!connected) {
+    faucetInfo += " Please connect a Solana wallet to continue.";
+  }
+
   return (
-    <div className="flexColumn" style={{ flex: 1 }}>
-      <div>
-        <div className="deposit-input-title" style={{ margin: 10 }}>
-          {LABELS.FAUCET_INFO}
+    <div className="flex flex-row justify-around">
+      <div className="flex flex-col px-10">
+        <div className="py-4">
+          {faucetInfo}
         </div>
-        <ConnectButton type="primary" onClick={airdrop}>
-          {LABELS.GIVE_SOL}
-        </ConnectButton>
+        <div className="py-4">
+          { connected ? (
+            <Button type="primary" onClick={airdrop}>LABELS.GIVE_SOL</Button>
+          ) : <></>}
+        </div>
       </div>
     </div>
   );

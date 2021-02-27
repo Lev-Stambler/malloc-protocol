@@ -52,7 +52,7 @@ export const AppLayout = (props: any) => {
           <AppBar />
         </Header>
         <Content style={{ margin: '0 16px' }}>
-          <div>
+          <div className="cursor-auto">
             {props.children}
           </div>
         </Content>
