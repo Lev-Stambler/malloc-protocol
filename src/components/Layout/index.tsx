@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Layout, Menu, Row, Col } from 'antd';
+import { Layout, Menu } from 'antd';
 import { Link } from "react-router-dom";
 import {
   DesktopOutlined,
@@ -9,8 +9,7 @@ import {
   PlusOutlined,
   DollarOutlined,
 } from '@ant-design/icons';
-import { ConnectButton } from "../ConnectButton";
-import { CurrentUserBadge } from "../CurrentUserBadge";
+import { AppBar } from "../AppBar";
 
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
@@ -50,17 +49,7 @@ export const AppLayout = (props: any) => {
       </Sider>
       <Layout className="site-layout">
         <Header className="site-layout-background" style={{ padding: '0 0 0 16px' }} >
-          <Row>
-            <Col flex="auto">
-              <h2>Malloc Protocol</h2>
-            </Col>
-            <Col flex="200px">
-              <CurrentUserBadge/> 
-            </Col>
-            <Col flex="100px">
-              <ConnectButton/>
-            </Col>
-          </Row>
+          <AppBar />
         </Header>
         <Content style={{ margin: '0 16px' }}>
           <div>
