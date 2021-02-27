@@ -1,29 +1,13 @@
 import { useMalloc } from "../../contexts/malloc";
 import { useDiagram } from "../../contexts/diagram";
 import React, { useEffect } from 'react';
-import { DiagramEngine, DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
+import { DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
 import { CanvasWidget } from '@projectstorm/react-canvas-core';
 import { useParams } from "react-router-dom";
+import {GraphEditorToolbar} from "../../components/GraphEditorToolbar";
+import { magenta, grey } from "@ant-design/colors"
 
 function drawGraph(model: DiagramModel) {
-  const node1 = new DefaultNodeModel({
-      name: 'Node 1',
-      color: 'rgb(0,192,255)',
-  });
-  node1.setPosition(100, 100);
-  let port1 = node1.addOutPort('Out');
-
-  // node 2
-  const node2 = new DefaultNodeModel({
-      name: 'Node 1',
-      color: 'rgb(0,192,255)',
-  });
-  node2.setPosition(100, 100);
-  let port2 = node2.addOutPort('Out');
-
-  const link = port1.link<DefaultLinkModel>(port2);
-
-  model.addAll(node1, node2, link);
 }
 
 export function CallGraphView() {
@@ -35,6 +19,7 @@ export function CallGraphView() {
   }, [topLevelBasketId, clearModel])
  
   useEffect(() => {
+    console.log("drawGraph!");
     drawGraph(model)  
   }, [model]);
 
@@ -44,7 +29,10 @@ export function CallGraphView() {
   return (
     <div className="flex flex-row h-full justify-around">
       <div className="flex flex-grow flex-col">
-        <div className="flex-grow">
+        <div className="py-2 z-index-2 ">
+          <GraphEditorToolbar model={model}/>
+        </div>
+        <div className="py-2 flex-grow">
           <CanvasWidget className="w-full h-full" engine={engine} />
         </div> 
       </div>
