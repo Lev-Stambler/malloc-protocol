@@ -38,7 +38,11 @@ export const AppLayout = (props: any) => {
             <Menu.Item key="5">top-secret portfolio</Menu.Item>
           </SubMenu>
           <SubMenu key="create" icon={<PlusOutlined />} title="Create">
-              <Menu.Item key="6" icon={<PieChartOutlined/>}>Basket</Menu.Item>
+              <Menu.Item key="6" icon={<PieChartOutlined/>}>
+                <Link to="/graph/:new">
+                  Basket
+                </Link>
+              </Menu.Item>
               <Menu.Item key="7" icon={<FunctionOutlined/>}>
                 <Link to="/register-wcall">
                   Call
@@ -47,12 +51,14 @@ export const AppLayout = (props: any) => {
           </SubMenu>
         </Menu>
       </Sider>
-      <Layout className="site-layout">
-        <Header className="site-layout-background" style={{ padding: '0 0 0 16px' }} >
-          <AppBar />
+      <Layout>
+        <Header style={{ padding: '0 0 0 16px' }} >
+          <div className="h-full w-full">
+            <AppBar />
+          </div>
         </Header>
         <Content style={{ margin: '0 16px' }}>
-          <div className="cursor-auto">
+          <div className="h-full w-full">
             {props.children}
           </div>
         </Content>

@@ -11,7 +11,7 @@ export const AppBar = (props: { left?: JSX.Element; right?: JSX.Element }) => {
   const { connected } = useWallet();
 
   const TopBar = (
-    <div className="flex flex-row justify-items-end w-full place-content-center">
+    <div className="flex flex-row justify-items-end max-h-full w-full place-content-center">
       <div className="flex flex-col flex-grow justify-self-start text-align-left px-8">
         <h2>Malloc Protocol</h2>
       </div>

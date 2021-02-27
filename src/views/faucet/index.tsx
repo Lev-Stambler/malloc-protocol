@@ -30,13 +30,13 @@ export const FaucetView = () => {
 
   return (
     <div className="flex flex-row justify-around">
-      <div className="flex flex-col px-10">
+      <div className="flex flex-col px-10 items-center">
         <div className="py-4">
-          {faucetInfo}
+            {faucetInfo}
         </div>
         <div className="py-4">
           { connected ? (
-            <Button type="primary" onClick={airdrop}>LABELS.GIVE_SOL</Button>
+            <Button type="primary" onClick={airdrop}>{LABELS.GIVE_SOL}</Button>
           ) : <></>}
         </div>
       </div>

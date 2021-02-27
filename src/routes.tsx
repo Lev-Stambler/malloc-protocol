@@ -22,7 +22,7 @@ export function Routes() {
                     <Switch>
                       <Route exact path="/" component={() => <HomeView />} />
                       <Route exact path="/faucet" children={<FaucetView />} />
-                      <Route exact path="/graph" children={<CallGraphView />} />
+                      <Route exact path="/graph/:topLevelBasketId" children={<CallGraphView />} />
                       <Route exact path="/register-wcall" children={<RegisterWCallView />} />
                     </Switch>
                   </AppLayout>

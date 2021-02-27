@@ -1,12 +1,16 @@
 import { useMalloc } from "../../contexts/malloc"
-import React, { useState } from 'react';
-import createEngine, { DiagramEngine, DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
+import React, { useCallback } from 'react';
+import { DiagramEngine, DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
 import { CanvasWidget } from '@projectstorm/react-canvas-core';
+import { useParams } from "react-router-dom";
 
 export function CallGraphView() {
+  let { topLevelBasketId } = useParams() as any;
   const malloc = useMalloc();
-  const engine = createEngine();
+
   const model = new DiagramModel();
+
+  const isNew = topLevelBasketId === "new";
   // node 1
   const node1 = new DefaultNodeModel({
       name: 'Node 1',
@@ -27,7 +31,15 @@ export function CallGraphView() {
 
   model.addAll(node1, node2, link);
 
-  engine.setModel(model);
+  window.diagramEngine.setModel(model);
  
-  return <CanvasWidget className="diagram-container" engine={engine} />
+  return (
+    <div className="flex flex-row h-full justify-around">
+      <div className="flex flex-grow flex-col">
+        <div className="flex-grow">
+          <CanvasWidget className="w-full h-full" engine={window.diagramEngine} />
+        </div> 
+      </div>
+    </div>
+  );
 }
