@@ -411,7 +411,7 @@ export class Malloc {
       isWritable: false,
       isSigner: false,
     })
-
+    const ephemeralAccountRent = rent;
     this.getAccountMetasFromCallGraphHelper(
       basket,
       ephemeralAccounts,
