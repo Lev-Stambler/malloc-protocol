@@ -23,6 +23,7 @@ import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
 import { createTokenAccount } from "../src/actions";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
+const SolanaNet = "https://devnet.solana.com";
 const SIMPLE_PASS_THROUGH_WCALL = new PublicKey(
   "G3bXM8ioQhAGJfCyQL9v6W4x1FVcFjGgtSgRiwkfYa4a"
 );
@@ -148,7 +149,7 @@ async function initMallocData() {
 }
 
 async function initAccounts(): Promise<Connection> {
-  connection = new Connection("https://devnet.solana.com", "singleGossip");
+  connection = new Connection(SolanaNet, "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
@@ -170,9 +171,9 @@ async function fundWithWSol(amount: number): Promise<PublicKey> {
 }
 
 describe("Run a standard set of Malloc tests", async function () {
-  this.timeout(20000);
+  this.timeout(200000);
   before(async function () {
-    this.timeout(20000);
+    this.timeout(200000);
     connection = await initAccounts();
     await initMallocData();
   });
@@ -241,7 +242,7 @@ describe("Run a standard set of Malloc tests", async function () {
         },
       },
     });
-    await malloc_class.refresh()
+    await malloc_class.refresh();
     // TODO: somehow how registering this WCall causes issues...
     await doGeneralInstrSingleton({
       RegisterCall: {
@@ -258,7 +259,7 @@ describe("Run a standard set of Malloc tests", async function () {
         },
       },
     });
-    await malloc_class.refresh()
+    await malloc_class.refresh();
     await doGeneralInstrSingleton({
       CreateBasket: {
         name: "Just a simp",
@@ -275,14 +276,13 @@ describe("Run a standard set of Malloc tests", async function () {
       CreateBasket: {
         name: "Just a chained",
         calls: [
-          "takes money from one account to another chained"
+          "takes money from one account to another chained",
           // "takes money from one account to another",
         ],
         splits: [1000],
         input: "WSol",
       },
     });
-
 
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
@@ -329,9 +329,8 @@ describe("Run a standard set of Malloc tests", async function () {
       fundedWSolInfoNew.amount.toNumber()
     );
 
-
     // TODO change to sep fn
-    const instsChained = []
+    const instsChained = [];
     const basketChainedNode = malloc_class.getCallGraph("Just a chained");
     const accountsChained = malloc_class.invokeCallGraph(
       instsChained,
@@ -341,8 +340,14 @@ describe("Run a standard set of Malloc tests", async function () {
       await malloc_class.getEphemeralAccountRent(),
       amountInFundedWSol
     );
-    const txRetChainedEph = await sendGeneralInstruction(instsChained.slice(0, instsChained.length - 1), accountsChained);
-    const txRetChained = await sendGeneralInstruction([instsChained[instsChained.length - 1]], accountsChained);
-    console.log("CHAINED TX for first part", txRetChained)
+    const txRetChainedEph = await sendGeneralInstruction(
+      instsChained.slice(0, instsChained.length - 1),
+      accountsChained
+    );
+    const txRetChained = await sendGeneralInstruction(
+      [instsChained[instsChained.length - 1]],
+      accountsChained
+    );
+    console.log("CHAINED TX for first part", txRetChained);
   });
 });

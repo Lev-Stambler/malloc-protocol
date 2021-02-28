@@ -1,8 +1,7 @@
 //! Instruction types
 
 // use crate::error::TokenError;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::{Serialize, Deserialize};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
@@ -12,7 +11,7 @@ use solana_program::{
     sysvar,
 };
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap},
     convert::TryInto,
     hash::Hash,
 };
@@ -120,11 +119,18 @@ impl ProgState {
         }
     }
 
+    // TODO: crazy enifficient
     pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
         unsafe {
             let encoded = self.pack();
-            let data = from_raw_parts_mut(data_ptr, encoded.len());
-            data.copy_from_slice(encoded.as_slice());
+            let first_0 = encoded.iter().position(|&r| r == 0);
+            let encoded_trimmed = if let Some(first_0_ind) = first_0 {
+                &encoded[0..first_0_ind]
+            } else {
+                &encoded
+            };
+            let data = from_raw_parts_mut(data_ptr, encoded_trimmed.len());
+            data.copy_from_slice(encoded_trimmed);
         };
         Ok(())
     }
@@ -148,7 +154,7 @@ impl ProgState {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        serde_json::to_vec(self).unwrap()
+        serde_json::to_vec(&self).unwrap()
     }
 }
 impl ProgInstruction {
@@ -164,7 +170,7 @@ impl ProgInstruction {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        serde_json::to_vec(self).unwrap()
+        serde_json::to_vec(&self).unwrap()
     }
 }
 

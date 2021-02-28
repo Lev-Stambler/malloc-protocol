@@ -1,3 +1,4 @@
+import { Schema as BorshSchema } from "borsh";
 import {
   Account,
   AccountInfo,
@@ -11,6 +12,16 @@ import { TOKEN_PROGRAM_ID } from "../utils/ids";
 export const SPLIT_SUM = 1000;
 
 type PubKeyRep = number[];
+
+class Assignable {
+    constructor(properties) {
+        Object.keys(properties).map((key) => {
+            this[key] = properties[key];
+        });
+    }
+}
+
+class Test extends Assignable { }
 
 export interface BasketNode {
   name: string;
@@ -42,6 +53,15 @@ export interface Basket {
   creator: PublicKey;
   input: string;
 }
+
+const WCallSchemaObj = {
+
+}
+
+const BasketSchema = new Map([[Test, {
+  kind: 'struct',
+  fields: [['creator', 'string'], ['input', 'string'], ['splits', 'Vec<u8>'], ['calls', 'Vec<string>']]
+}]])
 
 export enum WCallTypes {
   Simple = "Simple",
