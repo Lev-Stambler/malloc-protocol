@@ -29,7 +29,7 @@ export function FindBasketModal(props: FindBasketModalProps) {
   }, [malloc, onOk])
 
   return (
-    <Modal title="Find Basket" visible={isVisible} onCancel={onCancel}>
+    <Modal title="Find Basket" visible={isVisible} footer={null} closable={false}>
       <CreateBasketModal isVisible={createBasketVisible} onOk={closeCreateBasket} onCancel={closeCreateBasket}/>
       <Form name="find-basket" onFinish={onSubmit} >
         <Form.Item name={'name'} label="Search Baskets" rules={[{ required: true }]}>
@@ -37,6 +37,11 @@ export function FindBasketModal(props: FindBasketModalProps) {
         </Form.Item>
         <Form.Item>
           <div className="flex flex-row w-full justify-end">
+            <div className="flex-grow justiy-start">
+              <Button type="default" onClick={onCancel}>
+                Cancel
+              </Button>
+            </div>
             <Button className="mr-2" type="primary" htmlType="submit">
               Add Node
             </Button>

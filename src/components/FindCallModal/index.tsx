@@ -19,10 +19,9 @@ export function FindCallModal(props: FindCallModalProps) {
   const closeRegisterCall = () => {
     setRegisterCallVisible(false);
   }
-   
 
   return (
-    <Modal title="Find Call" visible={isVisible} onCancel={onCancel}>
+    <Modal title="Find Call" visible={isVisible} footer={null} closable={false}>
       <RegisterCallModal isVisible={registerCallVisible} onOk={closeRegisterCall} onCancel={closeRegisterCall}/>
       <Form name="find-call" onFinish={onOk} >
         <Form.Item name={'name'} label="Search Calls" rules={[{ required: true }]}>
@@ -30,8 +29,13 @@ export function FindCallModal(props: FindCallModalProps) {
         </Form.Item>
         <Form.Item>
           <div className="flex flex-row w-full justify-end">
+            <div className="flex-grow justiy-start">
+              <Button type="default" onClick={onCancel}>
+                Cancel
+              </Button>
+            </div>
             <Button className="mr-2" type="primary" htmlType="submit">
-              Add Node
+              Create Node
             </Button>
             <Button type="default" onClick={openRegisterCall}>
               Register New Call

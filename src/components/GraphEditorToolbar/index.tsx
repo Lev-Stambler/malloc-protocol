@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useMalloc } from '../../contexts/malloc';
-import { DiagramModel, DefaultLinkModel, DefaultNodeModel, DiagramEngine } from "@projectstorm/react-diagrams";
-import { Button, Popover } from "antd";
+import { DiagramModel, DefaultLinkModel, DefaultNodeModel } from "@projectstorm/react-diagrams";
+import { Action, ActionEvent, InputType } from "@projectstorm/react-canvas-core";
+import { Button, Popover, Tooltip } from "antd";
 import { PieChartOutlined, FunctionOutlined, PlusOutlined, DeleteOutlined, SyncOutlined } from "@ant-design/icons";
 import { magenta, grey } from "@ant-design/colors"
 import { FindCallModal } from "../../components/FindCallModal";
@@ -9,7 +10,8 @@ import { FindBasketModal } from "../../components/FindBasketModal";
 import { BasketNode, isWCallChained, WCallChainedNode, WCallSimpleNode } from "../../models/malloc";
 
 export interface GraphEditorToolbarProps {
-  model: DiagramModel,
+  model: DiagramModel;
+  repaintCanvas: () => void
 }
 
 export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
@@ -19,6 +21,8 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
   const [nodes, setNodes] = useState({});
 
   const malloc = useMalloc();
+
+  const { model, repaintCanvas } = props; 
   
   function createBasketNode(basket: BasketNode) {
     const node = new DefaultNodeModel({
@@ -65,6 +69,16 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
     return node
   }
 
+  const deleteSelectedElements = useCallback(() => {
+    const selectedElements = model.getSelectedEntities();
+    if (selectedElements.length > 0) {
+      selectedElements.forEach(elem => {
+        elem.remove();
+      })
+      repaintCanvas()
+    }
+  }, [model, repaintCanvas]);
+
   const addCallOk = (callName: string) => {
     setCallModalVisible(false);
     const node  = malloc.getCallNode(callName);
@@ -73,14 +87,15 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
     } else {
       alert('invalid callName');
     }
+    repaintCanvas();
   }
 
   const addBasketOk = (node: BasketNode) => {
     setBasketModalVisible(false);
     createBasketNode(node);
+    repaintCanvas();
   }
   
-  const { model } = props; 
 
 
   const buttons = (
@@ -108,6 +123,11 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
           >
             <Button type="default" size="large" icon={<PlusOutlined/>}/> 
           </Popover>
+        </div>
+        <div className="flex-intial h-full px-4">
+          <Tooltip placement="bottom" title={<span>delete selected elements</span>} >
+            <Button type="default" size="large" icon={<DeleteOutlined/>} onClick={deleteSelectedElements}/> 
+          </Tooltip>
         </div>
       </div>
     </>

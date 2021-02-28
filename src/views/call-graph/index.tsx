@@ -1,6 +1,6 @@
 import { useMalloc } from "../../contexts/malloc";
 import { useDiagram } from "../../contexts/diagram";
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { DiagramModel, DefaultLinkModel, DefaultNodeModel } from '@projectstorm/react-diagrams';
 import { CanvasWidget } from '@projectstorm/react-canvas-core';
 import { useParams } from "react-router-dom";
@@ -23,6 +23,10 @@ export function CallGraphView() {
     drawGraph(model)  
   }, [model]);
 
+  const repaintCanvas = useCallback(() => {
+    engine.repaintCanvas();
+  }, [engine]);
+
   const malloc = useMalloc();
   const isNew = topLevelBasketId === "new";
  
@@ -30,7 +34,7 @@ export function CallGraphView() {
     <div className="flex flex-row h-full justify-around">
       <div className="flex flex-grow flex-col">
         <div className="py-2 z-index-2 ">
-          <GraphEditorToolbar model={model}/>
+          <GraphEditorToolbar model={model} repaintCanvas={repaintCanvas}/>
         </div>
         <div className="py-2 flex-grow">
           <CanvasWidget className="w-full h-full" engine={engine} />

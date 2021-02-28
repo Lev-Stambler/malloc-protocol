@@ -3,8 +3,6 @@ import { Layout, Menu } from 'antd';
 import { Link } from "react-router-dom";
 import {
   DesktopOutlined,
-  PieChartOutlined,
-  FunctionOutlined,
   BarsOutlined,
   PlusOutlined,
   DollarOutlined,
@@ -32,22 +30,15 @@ export const AppLayout = (props: any) => {
               Faucet
             </Link>
           </Menu.Item>
+          <Menu.Item key="6" icon={<PlusOutlined/>}>
+            <Link to="/graph/:new">
+              Create Basket
+            </Link>
+          </Menu.Item>
           <SubMenu key="baskets" icon={<BarsOutlined/>} title="My Baskets">
             <Menu.Item key="3">Buy some eth</Menu.Item>
             <Menu.Item key="4">Totally sick loopty-loop</Menu.Item>
             <Menu.Item key="5">top-secret portfolio</Menu.Item>
-          </SubMenu>
-          <SubMenu key="create" icon={<PlusOutlined />} title="Create">
-              <Menu.Item key="6" icon={<PieChartOutlined/>}>
-                <Link to="/graph/:new">
-                  Basket
-                </Link>
-              </Menu.Item>
-              <Menu.Item key="7" icon={<FunctionOutlined/>}>
-                <Link to="/register-wcall">
-                  Call
-                </Link>
-              </Menu.Item>
           </SubMenu>
         </Menu>
       </Sider>
