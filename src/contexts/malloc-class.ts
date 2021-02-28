@@ -486,7 +486,7 @@ export class Malloc {
     instructions.push(...initEphemeralAccountInstsructions);
 
     instructions.push(
-      this.enactBasket({ basket_name: basket.name }, accountMetas)
+      this.enactBasket({ basket_name: basket.name, rent_given: rent }, accountMetas)
     );
 
     return newAccounts;

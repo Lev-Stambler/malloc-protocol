@@ -8,6 +8,7 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack},
     pubkey::Pubkey,
+    program_option::{COption}
 };
 use std::str::from_utf8;
 
@@ -67,7 +68,8 @@ fn process_enact_basket<'a>(
     _start_idx: usize,
     token_program_id: &Pubkey,
     spl_account: AccountInfo<'a>,
-    caller_account: AccountInfo<'a>
+    caller_account: AccountInfo<'a>,
+    rent_amount: u64
 ) -> ProgramResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
     let basket = prog_state
@@ -81,7 +83,14 @@ fn process_enact_basket<'a>(
     let mint_account = &remaining_accounts[start_idx];
     let malloc_spl_account: spl_token::state::Account =
         Pack::unpack(malloc_input.data.borrow().as_ref())?;
-    let amount_input = malloc_spl_account.amount;
+    let mut amount_input = malloc_spl_account.amount;
+    // Deal with unknown rent sizes for the account
+    if let COption::Some(rent_res) = malloc_spl_account.is_native {
+        msg!("Its a native token! rent res of {}", rent_res);
+        amount_input -= rent_amount;
+        amount_input += rent_res;
+    }
+    msg!("Amount input of {}", amount_input);
     let mut amount_remaining = amount_input;
 
     start_idx += 1;
@@ -108,6 +117,7 @@ fn process_enact_basket<'a>(
         let split_account = remaining_accounts[start_idx + 1].to_owned();
         // The owner of the source must be present in the signer
         // TODO: invoke
+        msg!("Approving {} for WCALL", amount_approve);
         let approve_inst = spl_token::instruction::approve(
             token_program_id,
             malloc_input.key,
@@ -146,7 +156,7 @@ fn process_enact_basket<'a>(
                     remaining_accounts, start_idx, associated_accounts_pubkeys.len(),
                     malloc_input, spl_account.to_owned());
                 start_idx += idx_advance;
-                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)
+                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts, amount_approve)
             }
             WCall::Chained {
                 wcall,
@@ -166,10 +176,10 @@ fn process_enact_basket<'a>(
                 start_idx += idx_advance;
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
-                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)?;
+                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts, amount_approve)?;
                 process_enact_basket(prog_state, callback_basket.to_owned(),
                     remaining_accounts, start_idx, 
-                    token_program_id, spl_account.to_owned(), caller_account.to_owned())
+                    token_program_id, spl_account.to_owned(), caller_account.to_owned(), rent_amount)
             }
         };
     }
@@ -261,7 +271,7 @@ pub fn process_instruction<'a>(
                 wcall,
             )
         }
-        ProgInstruction::EnactBasket { basket_name } => {
+        ProgInstruction::EnactBasket { basket_name, rent_given } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
             let spl_account: &'a AccountInfo<'a> = account_info_iter
                 .next()
@@ -270,7 +280,7 @@ pub fn process_instruction<'a>(
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            process_enact_basket(&prog_state, basket_name, &accounts[3..], 0, &spl_token_prog, spl_account.to_owned(), account_info.to_owned())
+            process_enact_basket(&prog_state, basket_name, &accounts[3..], 0, &spl_token_prog, spl_account.to_owned(), account_info.to_owned(), rent_given)
         }
         ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {

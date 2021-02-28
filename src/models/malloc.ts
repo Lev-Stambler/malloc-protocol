@@ -99,6 +99,7 @@ export interface CreateBasketArgs {
 }
 export interface EnactBasketArgs {
   basket_name: string;
+  rent_given: number;
 }
 export interface InitMallocArgs {}
 export interface NewSupportedWCallInput {

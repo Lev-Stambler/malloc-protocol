@@ -1296,6 +1296,7 @@ version = "3.0.0"
 dependencies = [
  "bincode",
  "borsh",
+ "byteorder",
  "hashbrown",
  "num-derive",
  "num-traits",

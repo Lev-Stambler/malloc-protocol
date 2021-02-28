@@ -230,9 +230,10 @@ describe("Run a standard set of Malloc tests", async function () {
         name: "Just a simp",
         calls: [
           "takes money from one account to another",
-          // "Just buy some more Eth",
+          "takes money from one account to another",
+          // "takes money from one account to another",
         ],
-        splits: [1000,],
+        splits: [500, 500],
         input: "WSol",
       },
     });
@@ -245,7 +246,7 @@ describe("Run a standard set of Malloc tests", async function () {
     const basketNode = malloc_class.getCallGraph("Just a simp");
     console.log("Basket node", basketNode);
     const amountInFundedWSol = 1 * 1000 * 1000 * 1000;
-    const fundedWSolAccount = await fundWithWSol(amountInFundedWSol);
+    const fundedWSolAccount = await fundWithWSol(amountInFundedWSol + 1000);
 
     const fundedWSolInfo = await tok.getAccountInfo(fundedWSolAccount)
 
@@ -277,9 +278,8 @@ describe("Run a standard set of Malloc tests", async function () {
     const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY)
     const amountIncrease = iGetMoneyInfo.amount.sub(iGetMoneyStartingInfo.amount).toNumber();
     console.log("I get money gets this may more coins", amountIncrease)
-    console.log(rent, amountIncrease, amountInFundedWSol)
     // account for payments
-    assert(amountIncrease >= rent + amountInFundedWSol - 55065680 && amountIncrease <= rent + amountInFundedWSol + 55065680)
+    assert(amountInFundedWSol === amountIncrease)
     const fundedWSolInfoNew = await tok.getAccountInfo(fundedWSolAccount)
     console.log("WSol is now funded with sol:", fundedWSolInfoNew.amount.toNumber())
   });

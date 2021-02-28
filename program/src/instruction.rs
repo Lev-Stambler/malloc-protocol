@@ -90,6 +90,7 @@ pub enum ProgInstruction {
     /// w[1][0]...
     EnactBasket {
         basket_name: BasketName,
+        rent_given: u64,
     },
     NewSupportedWCallInput {
         input_name: String,
