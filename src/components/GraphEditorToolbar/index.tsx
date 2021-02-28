@@ -38,7 +38,7 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
     basket.calls
       .map((call, i) => [call as any, basket.splits[i] as any])
       .forEach(([call, split], i) => {
-        const callNode = createCallNode(call.name);
+        const callNode = createCallNode(call);
         const basketOutput = node.addOutPort(`${split / 500}: ${call.name}`);
         const callInput = callNode.addInPort(call.input);
         const link = basketOutput.link<DefaultLinkModel>(callInput);

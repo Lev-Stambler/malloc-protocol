@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useMemo } from "react";
 import { useMalloc } from '../../contexts/malloc';
 import { Modal, Form, AutoComplete, Button } from 'antd';
 import { CreateBasketModal } from '../CreateBasketModal';
@@ -27,13 +27,24 @@ export function FindBasketModal(props: FindBasketModalProps) {
     const node = malloc.getCallGraph(basketName);
     onOk(node);
   }, [malloc, onOk])
+  
+  const getSearchOptions = useCallback(() => {
+    return malloc.getBasketNames();
+  }, [malloc])
+
+  const searchOptions = useMemo(() => getSearchOptions().map(value => ({ value })), [getSearchOptions]);
 
   return (
     <Modal title="Find Basket" visible={isVisible} footer={null} closable={false}>
       <CreateBasketModal isVisible={createBasketVisible} onOk={closeCreateBasket} onCancel={closeCreateBasket}/>
-      <Form name="find-basket" onFinish={onSubmit} >
+      <Form name="find-basket" onFinish={({ name }) => onSubmit(name)} >
         <Form.Item name={'name'} label="Search Baskets" rules={[{ required: true }]}>
-          <AutoComplete/>
+          <AutoComplete
+            options={searchOptions}
+            filterOption={(inputValue, option) => (
+              option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+            )}
+          />
         </Form.Item>
         <Form.Item>
           <div className="flex flex-row w-full justify-end">

@@ -29,6 +29,7 @@
     "craco-less": "^1.17.0",
     "dagre": "^0.8.5",
     "eventemitter3": "^4.0.7",
+    "faker": "^5.4.0",
     "identicon.js": "^2.3.3",
     "jazzicon": "^1.5.0",
     "lodash": "4.*",

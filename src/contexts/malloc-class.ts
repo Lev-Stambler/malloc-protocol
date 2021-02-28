@@ -30,6 +30,7 @@ import {
   MallocState,
   NewSupportedWCallInput,
 } from "../models/malloc";
+import {fakeMallocState} from "../utils/fakeState";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
 import { serializePubkey, trimBuffer } from "../utils/utils";
 import { sendTransaction } from "./connection";
@@ -42,6 +43,7 @@ export class Malloc {
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
   private state: MallocState | undefined;
+  private useDummyState: boolean;
   private tokenAccounts: any;
   private nativeAccounts: any;
 
@@ -50,7 +52,8 @@ export class Malloc {
     progId: PublicKey,
     connection: Connection,
     wallet: WalletAdapter | undefined,
-    accountsContext: any
+    accountsContext: any,
+    dummyState: boolean = false
   ) {
     this.progStateAccount = progStateAccount;
     this.progId = progId;
@@ -58,6 +61,12 @@ export class Malloc {
     this.wallet = wallet;
     this.tokenAccounts = accountsContext.userAccounts;
     this.nativeAccounts = accountsContext.nativeAccounts;
+    this.useDummyState = dummyState;
+    
+    if (dummyState) {
+      this.state = fakeMallocState();
+      console.log(this.state);
+    }
   }
 
   public setUserPubKeyAlt(pubkey: PublicKey) {
@@ -172,7 +181,17 @@ export class Malloc {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
       return;
     }
-    this.state = this.parseAccountState(accountInfo.data);
+
+    if (this.useDummyState) {
+      const parsedState = this.parseAccountState(accountInfo.data);
+
+      this.state = {
+        ...parsedState,
+        ...this.state,
+      }
+    } else {
+      this.state = this.parseAccountState(accountInfo.data);
+    }
   }
 
   callGraphToTransactionsHelper(
@@ -498,16 +517,17 @@ export class Malloc {
     );
   }
 
-  public getCallGraph(basketName: string): BasketNode {
+  public getCallGraph(basketName: string, depth: number = 4): BasketNode {
     if (!this.state) {
       throw new Error("state not initialized!");
     }
+    console.log(this.state.baskets, basketName);
     const basket = this.state.baskets[basketName];
     return {
       name: basketName,
       splits: basket.splits,
       input: basket.input,
-      calls: basket.calls.map((callName) => {
+      calls: (depth <= 0) ? [] : basket.calls.map((callName) => {
         const callDescriptor = (this.state as MallocState).wrapped_calls[
           callName
         ];
@@ -523,7 +543,7 @@ export class Malloc {
               wcall: callData.wcall,
               input: callData.input,
               output: callData.output,
-              callbackBasket: this.getCallGraph(callData.callback_basket),
+              callbackBasket: this.getCallGraph(callData.callback_basket, depth - 1),
             } as WCallChainedNode;
           }
           default: {
@@ -636,5 +656,19 @@ export class Malloc {
       wcall: simpleCallData.wcall,
       associateAccounts: simpleCallData.associated_accounts
     }
+  }
+
+  public getBasketNames(): string[] {
+    if (!this.state) {
+      return []
+    }
+    return Object.keys(this.state.baskets);
+  }
+
+  public getCallNames(): string[] {
+    if (!this.state) {
+      return []
+    }
+    return Object.keys(this.state.wrapped_calls)
   }
 }
