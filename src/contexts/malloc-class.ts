@@ -41,7 +41,7 @@ export class Malloc {
   private connection: Connection;
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
-  private state: MallocState | undefined;
+  public state: MallocState | undefined;
   private tokenAccounts: any;
   private nativeAccounts: any;
 
@@ -186,7 +186,7 @@ export class Malloc {
       if (isWCallChained(call)) {
         const callNode = call as WCallChainedNode;
         this.callGraphToTransactionsHelper(
-          callNode.callbackBasket,
+          callNode.callback_basket,
           transactions
         );
         transactions.push(
@@ -195,7 +195,7 @@ export class Malloc {
             wcall: {
               Chained: {
                 wcall: serializePubkey(callNode.wcall),
-                callback_basket: callNode.callbackBasket.name,
+                callback_basket: callNode.callback_basket.name,
                 output: callNode.output,
                 input: callNode.input,
                 associated_accounts: callNode.associateAccounts.map((k) =>
@@ -266,13 +266,13 @@ export class Malloc {
       if (isWCallChained(call)) {
         const callData = call as WCallChainedNode;
         const basketInput = this.state?.baskets[basket.name].input;
-        const callbackBasketInput = callData.callbackBasket.input;
+        const callbackBasketInput = callData.callback_basket.input;
 
         return (
           callData.input === basketInput &&
           callData.output === callbackBasketInput &&
           this.checkCallGraph(
-            (call as WCallChainedNode).callbackBasket,
+            (call as WCallChainedNode).callback_basket,
             depth - 1
           )
         );
@@ -359,7 +359,7 @@ export class Malloc {
           this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
           signers
         );
-        if (signers[0].publicKey !== ephemeralAccountPubKey) {
+        if (signers[0].publicKey.toBase58() !== ephemeralAccountPubKey.toBase58()) {
           throw Error("ephemeralAccount not created properly!");
         }
         ephemeralAccounts.push(signers[0]);
@@ -371,7 +371,7 @@ export class Malloc {
 
         // recurse
         this.getAccountMetasFromCallGraphHelper(
-          (call as WCallChainedNode).callbackBasket,
+          (call as WCallChainedNode).callback_basket,
           ephemeralAccounts,
           initEphemeralAccountInstsructions,
           rent,
@@ -406,11 +406,6 @@ export class Malloc {
       isSigner: true,
     });
 
-    accountMetas.push({
-      pubkey: mintPubkey,
-      isWritable: false,
-      isSigner: false,
-    })
     const ephemeralAccountRent = rent;
     this.getAccountMetasFromCallGraphHelper(
       basket,
@@ -426,6 +421,20 @@ export class Malloc {
       initEphemeralAccountInstsructions,
     };
   }
+
+  // private guessNumEphemeralAccounts(basket: BasketNode): number {
+  //   let numbInsts = 0
+  //   basket.calls.forEach(call => {
+  //     // 1 for each split account
+  //     numbInsts += 1
+  //     if (isWCallChained(call)) {
+  //       // 1 for the chained output
+  //       numbInsts += 1
+  //       numbInsts += this.guessNumEphemeralAccounts((call as WCallChainedNode).callback_basket)
+  //     }
+  //   })
+  //   return numbInsts
+  // }
 
   // returns the ephemeral accounts to empty later
   public invokeCallGraph(
@@ -523,7 +532,7 @@ export class Malloc {
               wcall: callData.wcall,
               input: callData.input,
               output: callData.output,
-              callbackBasket: this.getCallGraph(callData.callback_basket),
+              callback_basket: this.getCallGraph(callData.callback_basket),
             } as WCallChainedNode;
           }
           default: {

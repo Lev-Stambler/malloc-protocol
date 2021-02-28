@@ -14,6 +14,7 @@ use std::str::from_utf8;
 
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+type EnactBasketResult = std::result::Result<usize, ProgramError>;
 
 fn process_register_call(
     sender: &Pubkey,
@@ -70,7 +71,7 @@ fn process_enact_basket<'a>(
     spl_account: AccountInfo<'a>,
     caller_account: AccountInfo<'a>,
     rent_amount: u64
-) -> ProgramResult {
+) -> EnactBasketResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
     let basket = prog_state
         .baskets
@@ -80,7 +81,6 @@ fn process_enact_basket<'a>(
 
     let malloc_input = &remaining_accounts[start_idx];
     start_idx += 1;
-    let mint_account = &remaining_accounts[start_idx];
     let malloc_spl_account: spl_token::state::Account =
         Pack::unpack(malloc_input.data.borrow().as_ref())?;
     let mut amount_input = malloc_spl_account.amount;
@@ -93,7 +93,6 @@ fn process_enact_basket<'a>(
     msg!("Amount input of {}", amount_input);
     let mut amount_remaining = amount_input;
 
-    start_idx += 1;
     msg!(
         "Starting idx: {} remaining_accounts size: {}",
         start_idx,
@@ -140,7 +139,7 @@ fn process_enact_basket<'a>(
             .wrapped_calls
             .get(&call_name)
             .ok_or(ProgramError::InvalidInstructionData)?;
-        let res = match wcall {
+        match wcall {
             WCall::Simple {
                 wcall,
                 associated_accounts: associated_accounts_pubkeys,
@@ -156,7 +155,7 @@ fn process_enact_basket<'a>(
                     remaining_accounts, start_idx, associated_accounts_pubkeys.len(),
                     malloc_input, spl_account.to_owned());
                 start_idx += idx_advance;
-                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts, amount_approve)
+                crate::wcall_handlers::enact_wcall(wcall, &inp_accounts, amount_approve)?;
             }
             WCall::Chained {
                 wcall,
@@ -177,15 +176,18 @@ fn process_enact_basket<'a>(
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
                 crate::wcall_handlers::enact_wcall(wcall, &inp_accounts, amount_approve)?;
-                process_enact_basket(prog_state, callback_basket.to_owned(),
+                let new_start_idx = process_enact_basket(prog_state, callback_basket.to_owned(),
                     remaining_accounts, start_idx, 
-                    token_program_id, spl_account.to_owned(), caller_account.to_owned(), rent_amount)
+                    token_program_id, spl_account.to_owned(), caller_account.to_owned(), rent_amount)?;
+                // TODO: ??? no clue why tbh
+                // Account for off by 1 created by double counting the output
+                start_idx = new_start_idx - 1;
             }
         };
     }
     // invoke(&instruction, accounts)?;
     msg!("MALLOC LOG: enacted basket '{}'", basket_name);
-    Ok(())
+    Ok(start_idx)
 }
 
 fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResult {
@@ -280,7 +282,8 @@ pub fn process_instruction<'a>(
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            process_enact_basket(&prog_state, basket_name, &accounts[3..], 0, &spl_token_prog, spl_account.to_owned(), account_info.to_owned(), rent_given)
+            let _ = process_enact_basket(&prog_state, basket_name, &accounts[3..], 0, &spl_token_prog, spl_account.to_owned(), account_info.to_owned(), rent_given)?;
+            Ok(())
         }
         ProgInstruction::InitMalloc {} => Ok(()),
         ProgInstruction::CreateBasket {

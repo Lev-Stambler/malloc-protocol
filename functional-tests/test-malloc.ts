@@ -241,22 +241,24 @@ describe("Run a standard set of Malloc tests", async function () {
         },
       },
     });
+    await malloc_class.refresh()
     // TODO: somehow how registering this WCall causes issues...
-    // await doGeneralInstrSingleton({
-    //   RegisterCall: {
-    //     call_name: "takes money from one account to another chained",
-    //     // dummy public key
-    //     wcall_enum: {
-    //       Chained: {
-    //         wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
-    //         input: "WSol",
-    //         output: "WSol",
-    //         callback_basket: "Just a simp",
-    //         associated_accounts: [],
-    //       },
-    //     },
-    //   },
-    // });
+    await doGeneralInstrSingleton({
+      RegisterCall: {
+        call_name: "takes money from one account to another chained",
+        // dummy public key
+        wcall_enum: {
+          Chained: {
+            wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
+            input: "WSol",
+            output: "WSol",
+            callback_basket: "Just a simp",
+            associated_accounts: [],
+          },
+        },
+      },
+    });
+    await malloc_class.refresh()
     await doGeneralInstrSingleton({
       CreateBasket: {
         name: "Just a simp",
@@ -295,17 +297,12 @@ describe("Run a standard set of Malloc tests", async function () {
     console.log("WSol in funded with sol:", fundedWSolInfo.amount.toNumber());
 
     const basketNode = malloc_class.getCallGraph("Just a simp");
-    console.log("Basket node", basketNode);
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
       fundedWSolAccount,
       await malloc_class.getEphemeralAccountRent(),
       amountInFundedWSol
-    );
-    console.log(
-      "Accounts:",
-      accounts.map((k) => k.publicKey.toBase58())
     );
 
     // await sendGeneralInstruction([insts[0]], [accounts[0],])
@@ -336,7 +333,6 @@ describe("Run a standard set of Malloc tests", async function () {
     // TODO change to sep fn
     const instsChained = []
     const basketChainedNode = malloc_class.getCallGraph("Just a chained");
-    console.log("Basket node", basketNode);
     const accountsChained = malloc_class.invokeCallGraph(
       instsChained,
       basketChainedNode,
@@ -345,6 +341,8 @@ describe("Run a standard set of Malloc tests", async function () {
       await malloc_class.getEphemeralAccountRent(),
       amountInFundedWSol
     );
-    const txRetChained = await sendGeneralInstruction(instsChained, accountsChained);
+    // const txRetChainedEph = await sendGeneralInstruction(instsChained.slice(0, instsChained.length - 1), accountsChained);
+    // const txRetChained = await sendGeneralInstruction([instsChained[instsChained.length - 1]], accountsChained);
+    // console.log("CHAINED TX for first part", txRetChained)
   });
 });
