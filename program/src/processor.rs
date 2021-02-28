@@ -90,6 +90,7 @@ fn process_enact_basket<'a>(
         start_idx,
         remaining_accounts.len()
     );
+    let spl_ref = &spl_account;
     for i in 0..basket.calls.len() {
         let call_name = basket.calls[i].clone();
         let split_amount = basket.splits[i];
@@ -142,7 +143,8 @@ fn process_enact_basket<'a>(
                 );
                 let (inp_accounts, idx_advance) = 
                     crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
-                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input);
+                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(),
+                    malloc_input, spl_account.to_owned());
                 start_idx += idx_advance;
                 crate::wcall_handlers::enact_wcall(wcall, &inp_accounts)
             }
@@ -160,7 +162,7 @@ fn process_enact_basket<'a>(
                 );
                 let (mut inp_accounts, idx_advance) = 
                     crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
-                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input);
+                    remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input, spl_account.to_owned());
                 start_idx += idx_advance;
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
@@ -261,7 +263,7 @@ pub fn process_instruction<'a>(
         }
         ProgInstruction::EnactBasket { basket_name } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
-            let spl_account = account_info_iter
+            let spl_account: &'a AccountInfo<'a> = account_info_iter
                 .next()
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
             let spl_token_prog = Pubkey::new(&vec![

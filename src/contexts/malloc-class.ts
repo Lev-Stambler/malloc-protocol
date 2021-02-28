@@ -577,7 +577,7 @@ export class Malloc {
     };
 
     const walletMeta = {
-      isWritable: false,
+      isWritable: true,
       pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
       isSigner: true,
     };

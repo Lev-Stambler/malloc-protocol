@@ -122,13 +122,14 @@ async function sendGeneralInstruction(
       );
       tx.add(inst);
     });
-    await sendAndConfirmTransaction(connection, tx, [account, ...signers], {
+    const txRet = await sendAndConfirmTransaction(connection, tx, [account, ...signers], {
       skipPreflight: true,
       commitment: "singleGossip",
     });
     const data_account_info = await connection.getAccountInfo(
       data_account.publicKey
     );
+    return txRet
     // console.log(
     //   new TextDecoder("utf-8").decode(
     //     new Uint8Array(data_account_info?.data || [])
@@ -285,16 +286,14 @@ describe("Run a standard set of Malloc tests", async function () {
     // await sendGeneralInstruction([insts[0]], [accounts[0],])
     // await sendGeneralInstruction([insts[1]], [accounts[0]])
     // await sendGeneralInstruction([insts[2]], [accounts[0], accounts[2]])
-    for (let i = 0; i < insts.length; i++) {
-      // await sendGeneralInstruction([insts[i]], accounts)
-    }
-    await sendGeneralInstruction(insts, accounts);
+    const txRet = await sendGeneralInstruction(insts, accounts);
+    console.log("ENACT BASKET DONE, ", txRet)
 
     const data = (await getDataParsed()) as MallocState;
     console.log("baskets:", data.baskets);
-    assert(data.wrapped_calls["Just buy some more Eth"]);
+    assert(data.wrapped_calls["takes money from one account to another"]);
     assert(data.supported_wrapped_call_inputs["WSol"]);
-    assert(data.baskets["Just buy just buy eth"]);
+    assert(data.baskets["Just a simp"]);
     console.log(TOKEN_PROGRAM_ID.toBase58())
     const tok = new Token(connection, WRAPPED_SOL_MINT, TOKEN_PROGRAM_ID, account);
     const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY)
