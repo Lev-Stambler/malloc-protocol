@@ -586,13 +586,13 @@ export class Malloc {
       isWritable: false,
       pubkey: TOKEN_PROGRAM_ID,
       isSigner: false
-    }
+    }  
 
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
       data: Buffer.from(JSON.stringify({ EnactBasket: args })),
-    });
+    });  
   }
 
   public async sendMallocTransaction(
@@ -609,5 +609,32 @@ export class Malloc {
     );
     await sendTransaction(this.connection, this.wallet, instructions, signers);
     await this.refresh();
+  }
+
+  public getCallNode(callName: string): WCallChainedNode | WCallSimpleNode | undefined {
+    if (!this.state) {
+      return undefined;
+    }
+
+    const callData = this.state.wrapped_calls[callName];
+    
+    if (isWCallChained(callData)) {
+      const chainedCallData = (callData as any).Chained as WCallChained<PublicKey>;
+      return {
+        name: callName,
+        input: chainedCallData.input,
+        output: chainedCallData.output,
+        wcall: chainedCallData.wcall,
+        associateAccounts: chainedCallData.associated_accounts, 
+      }
+    }
+
+    const simpleCallData = (callData as any).Simple as WCallSimple<PublicKey>;
+    return {
+      name: callName,
+      input: simpleCallData.input,
+      wcall: simpleCallData.wcall,
+      associateAccounts: simpleCallData.associated_accounts
+    }
   }
 }
