@@ -341,8 +341,8 @@ describe("Run a standard set of Malloc tests", async function () {
       await malloc_class.getEphemeralAccountRent(),
       amountInFundedWSol
     );
-    // const txRetChainedEph = await sendGeneralInstruction(instsChained.slice(0, instsChained.length - 1), accountsChained);
-    // const txRetChained = await sendGeneralInstruction([instsChained[instsChained.length - 1]], accountsChained);
-    // console.log("CHAINED TX for first part", txRetChained)
+    const txRetChainedEph = await sendGeneralInstruction(instsChained.slice(0, instsChained.length - 1), accountsChained);
+    const txRetChained = await sendGeneralInstruction([instsChained[instsChained.length - 1]], accountsChained);
+    console.log("CHAINED TX for first part", txRetChained)
   });
 });
