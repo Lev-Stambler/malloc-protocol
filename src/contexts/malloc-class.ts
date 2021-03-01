@@ -44,7 +44,7 @@ export class Malloc {
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
   public state: MallocState | undefined;
-  private useDummyState: boolean
+  private useDummyState: boolean;
   private tokenAccounts: any;
   private nativeAccounts: any;
 
@@ -125,41 +125,33 @@ export class Malloc {
       programId: this.progId,
       data: Buffer.from(
         JSON.stringify({
-          RegisterCall: {
-            call_name: args.call_name,
-            wcall,
-          },
+          RegisterCall: sending_args,
         })
       ),
     });
   }
 
-  public registerNewSupportedWCall(
-    instructions: TransactionInstruction[],
-    args: NewSupportedWCallInput
-  ) {
-    if (!this.wallet) {
+  public registerNewSupportedWCall(args: NewSupportedWCallInput) {
+    if (!this.wallet && !this.userPubKeyAlt) {
       alert("please connect your wallet first");
-      return;
+      throw "No user"
     }
-    instructions.push(
-      new TransactionInstruction({
-        keys: [
-          {
-            isWritable: true,
-            pubkey: this.progStateAccount,
-            isSigner: false,
-          },
-          {
-            isWritable: false,
-            pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-            isSigner: true,
-          },
-        ],
-        programId: this.progId,
-        data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
-      })
-    );
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+        {
+          isWritable: false,
+          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+          isSigner: true,
+        },
+      ],
+      programId: this.progId,
+      data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
+    });
   }
 
   private convertObjToHavePubKey(state: any) {
@@ -400,7 +392,9 @@ export class Malloc {
           this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
           signers
         );
-        if (signers[0].publicKey.toBase58() !== ephemeralAccountPubKey.toBase58()) {
+        if (
+          signers[0].publicKey.toBase58() !== ephemeralAccountPubKey.toBase58()
+        ) {
           throw Error("ephemeralAccount not created properly!");
         }
         ephemeralAccounts.push(signers[0]);
@@ -538,7 +532,10 @@ export class Malloc {
     instructions.push(...initEphemeralAccountInstsructions);
 
     instructions.push(
-      this.enactBasket({ basket_name: basket.name, rent_given: rent }, accountMetas)
+      this.enactBasket(
+        { basket_name: basket.name, rent_given: rent },
+        accountMetas
+      )
     );
 
     return newAccounts;
@@ -608,12 +605,12 @@ export class Malloc {
         },
         {
           isWritable: false,
-          pubkey: this.wallet?.publicKey as PublicKey || this.userPubKeyAlt,
+          pubkey: (this.wallet?.publicKey as PublicKey) || this.userPubKeyAlt,
           isSigner: true,
         },
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ createBasket: args })),
+      data: Buffer.from(JSON.stringify({ CreateBasket: args })),
     });
   }
 
@@ -672,7 +669,7 @@ export class Malloc {
 
     const callData = this.state.wrapped_calls[callName];
 
-    if (isWCallChained(callData)) {
+    if ((callData as any).Chained) {
       const chainedCallData = (callData as any)
         .Chained as WCallChained<PublicKey>;
       return {

@@ -351,13 +351,16 @@ describe("Run a standard set of Malloc tests", async function () {
   it("Try token swap out", async () => {
     let insts: TransactionInstruction[] = [];
     const signers: Account[] = [];
+    const TOKEN_A_MINT = new PublicKey(
+      "HqrhXafTxwqk9G1nf47YWDvTpB5jDtmUnWTsU7mse41S"
+    );
 
     const sourceAccount = createTokenAccount(
       insts,
       account.publicKey,
       await malloc_class.getEphemeralAccountRent(),
       // Token A Mint
-      new PublicKey("HqrhXafTxwqk9G1nf47YWDvTpB5jDtmUnWTsU7mse41S"),
+      TOKEN_A_MINT,
       account.publicKey,
       signers
     );
@@ -375,30 +378,37 @@ describe("Run a standard set of Malloc tests", async function () {
     console.log("Create tok swap accounts");
 
     const wcallName = "SWAP TOK_A for TOK_B";
-    // TODO: approve new input for the swap
+
     await sendGeneralInstruction([
-      registerTokSwapWCall(malloc_class, wcallName, destAccount),
+      malloc_class.registerNewSupportedWCall({
+        input_name: "TOK A",
+        input_address: serializePubkey(TOKEN_A_MINT),
+      }),
+    ]);
+    await sendGeneralInstruction([
+      registerTokSwapWCall(malloc_class, wcallName, "TOK A", destAccount),
     ]);
     console.log("Registered WCall");
     await malloc_class.refresh();
     assert(
       (malloc_class.state?.wrapped_calls[wcallName] as any).Simple
-        .associated_accounts.length === 7
+        .associated_accounts.length === 9
     );
 
     await sendGeneralInstruction([
       malloc_class.createBasket({
         name: "Swap basic basket",
-        calls: ["SWAP SOL for MINT"],
+        calls: [wcallName],
         splits: [1000],
-        input: "WSol",
+        input: "TOK A",
       }),
     ]);
     console.log("Basket created");
     insts = [];
-    const amountInFunded = 0;
+    const amountInFunded = 2;
 
-    const basketNode = malloc_class.getCallGraph("Just a simp");
+    await malloc_class.refresh();
+    const basketNode = malloc_class.getCallGraph("Swap basic basket");
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
@@ -407,6 +417,8 @@ describe("Run a standard set of Malloc tests", async function () {
       amountInFunded
     );
 
+    // Dest account
+    // accounts.push(signers[1])
     const txRet = await sendGeneralInstruction(insts, accounts);
   });
 });

@@ -124,14 +124,14 @@ impl ProgState {
     pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
         unsafe {
             let encoded = self.pack();
-            let first_0 = encoded.iter().position(|&r| r == 0);
-            let encoded_trimmed = if let Some(first_0_ind) = first_0 {
-                &encoded[0..first_0_ind]
-            } else {
-                &encoded
-            };
-            let data = from_raw_parts_mut(data_ptr, encoded_trimmed.len());
-            data.copy_from_slice(encoded_trimmed);
+//            let first_0 = encoded.iter().position(|&r| r == 0);
+//            let encoded_trimmed = if let Some(first_0_ind) = first_0 {
+//                &encoded[0..first_0_ind]
+//            } else {
+//                &encoded
+//            };
+            let data = from_raw_parts_mut(data_ptr, encoded.len());
+            data.copy_from_slice(&encoded);
         };
         Ok(())
     }

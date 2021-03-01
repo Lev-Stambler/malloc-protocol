@@ -20,38 +20,41 @@ fn process_register_call(
     prog_state: &mut ProgState,
     program_data: *mut u8,
     name: String,
-    mut wcall: WCall,
+    wcall: WCall,
     associated_accounts: Vec<Pubkey>
 ) -> ProgramResult {
     if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
         msg!("MALLOC LOG: This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
+    msg!("Got {:?} associated accounts through account infos", associated_accounts.len());
     // TODO: if it's not in there, do we want the user to allow for adding this?
-    if associated_accounts.len() > 0 {
-        wcall = match wcall {
+    let updated_wcall = if associated_accounts.len() > 0 {
+        match wcall {
             WCall::Simple { wcall, input, .. } => {
                 WCall::Simple {
                     wcall, input, associated_accounts
                 }
             }
             WCall::Chained { wcall, callback_basket, input, output, .. } => {
-                WCall::Simple {
-                    wcall, input, associated_accounts
+                WCall::Chained {
+                    wcall, input, associated_accounts, callback_basket, output
                 }
             }
-        };
-    }
+        }
+    } else {
+        wcall
+    };
 
-    let call_input = match &wcall {
-        WCall::Simple { wcall, input, .. } => input,
+    let call_input = match &updated_wcall {
+        WCall::Simple { input, .. } => input,
         WCall::Chained { input, .. } => input,
     };
     if let None = prog_state.supported_wrapped_call_inputs.get(call_input) {
         msg!("MALLOC LOG: The w-call's inputs must be supported");
         return Err(ProgramError::InvalidInstructionData);
     }
-    let _ = prog_state.wrapped_calls.insert(name.clone(), wcall);
+    let _ = prog_state.wrapped_calls.insert(name.clone(), updated_wcall);
     prog_state.write_new_prog_state(program_data)?;
     msg!("MALLOC LOG: registered call '{}'", name);
     Ok(())
@@ -224,6 +227,7 @@ fn process_create_basket(
     input: String,
 ) -> ProgramResult {
     // TODO: checking
+    msg!("Creating malloc basket");
     let new_basket = Basket::new(calls, splits, Pubkey::default(), input);
     prog_state.baskets.insert(name.clone(), new_basket);
     let _ = prog_state.write_new_prog_state(program_data)?;
