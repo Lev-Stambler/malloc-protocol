@@ -1,25 +1,29 @@
 //! Solana Utility functions
 
 use crate::instruction::{ProgState, WCall};
-use std::io::Cursor;
 use byteorder::{BigEndian, WriteBytesExt};
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
+    msg,
     program::invoke,
     program::invoke_signed,
     program_error::ProgramError,
     program_option::COption,
     pubkey::Pubkey,
-    msg
 };
+use std::io::Cursor;
 
 /// @res the 0th account is the wcall_exec account, 1st for malloc input, 2nd for spl_prog, the
 /// rest for associated_accounts
-pub fn get_accounts_for_enact_basket_wcall<'a>(accounts_remaining: &[AccountInfo<'a>], start_idx: usize,
-    numb_associated_accounts: usize, malloc_input: &'a AccountInfo<'a>, spl_prog: AccountInfo<'a>)
-      -> (Vec<AccountInfo<'a>>, usize) {
+pub fn get_accounts_for_enact_basket_wcall<'a>(
+    accounts_remaining: &[AccountInfo<'a>],
+    start_idx: usize,
+    numb_associated_accounts: usize,
+    malloc_input: &'a AccountInfo<'a>,
+    spl_prog: AccountInfo<'a>,
+) -> (Vec<AccountInfo<'a>>, usize) {
     // TODO: check to ensure associated_accounts_pubkeys is correct
     //
     // + 2 because 1 for exec account 1 for split account
@@ -31,7 +35,11 @@ pub fn get_accounts_for_enact_basket_wcall<'a>(accounts_remaining: &[AccountInfo
     (inp_accounts, (numb_associated_accounts + 2))
 }
 
-pub fn enact_wcall(program_id: &Pubkey, inp_accounts: &[AccountInfo], amount: u64) -> ProgramResult {
+pub fn enact_wcall(
+    program_id: &Pubkey,
+    inp_accounts: &[AccountInfo],
+    amount: u64,
+) -> ProgramResult {
     // TODO: in the future we could pass data arround as well
     // TODO: ?
     //let account_metas: Vec<AccountMeta> = Vec::new();

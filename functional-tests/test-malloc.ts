@@ -135,7 +135,8 @@ async function doGeneralInstrSingleton(instruction: TransactionInstruction) {
 }
 
 async function initMallocData(malloc_class: Malloc) {
-  await doGeneralInstrSingleton(malloc_class.initState());
+  const inst = malloc_class.initState()
+  await sendGeneralInstruction([inst], [data_account]);
 }
 
 async function initAccounts(): Promise<Connection> {
@@ -176,6 +177,7 @@ describe("Run a standard set of Malloc tests", async function () {
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
     await initMallocData(malloc_class);
+    const data = await connection.getAccountInfo(data_account.publicKey)
 
     let insts = [];
     malloc_class.registerNewSupportedWCall(insts, {
@@ -183,6 +185,7 @@ describe("Run a standard set of Malloc tests", async function () {
       input_address: WRAPPED_SOL_MINT,
     });
     await doGeneralInstrSingleton(insts[0]);
+    console.log("WSol registered")
   });
 
   it("fails if already registered", async () => {

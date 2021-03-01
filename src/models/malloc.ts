@@ -285,8 +285,8 @@ export class NewSupportedWCallInputInstructionData extends Assignable {
     return serialize(SCHEMA, this);
   }
 
-  static decode(bytes: Buffer): EnactBasketInstructionData {
-    return deserialize(SCHEMA, EnactBasketInstructionData, bytes);
+  static decode(bytes: Buffer): NewSupportedWCallInputInstructionData {
+    return deserialize(SCHEMA, NewSupportedWCallInputInstructionData, bytes);
   }
 
   static createNew(input_name: string, input_address: PublicKey): NewSupportedWCallInputInstructionData {
@@ -575,7 +575,7 @@ export const SCHEMA = new Map<Function, any>([
   [NewSupportedWCallInputInstructionData, {
     kind: 'struct', fields: [
       ['input_name', 'string'],
-      ['input_address', ['u8']]
+      ['input_address', [32]]
     ]
   }],
   [InitMallocInstructionData, {

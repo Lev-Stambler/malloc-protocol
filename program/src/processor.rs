@@ -19,11 +19,11 @@ type EnactBasketResult = std::result::Result<usize, ProgramError>;
 
 fn process_register_call<'a>(
     sender: &Pubkey,
-    prog_state: &mut ProgState,
+    prog_state: &'a mut ProgState,
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
-    associated_accounts: Vec<Pubkey>
+    associated_accounts_infos: Vec<AccountInfo>,
 ) -> ProgramResult {
     if let Some(_entry) = prog_state
         .wrapped_calls
@@ -33,26 +33,49 @@ fn process_register_call<'a>(
         msg!("MALLOC LOG: This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
-    msg!("Got {:?} associated accounts through account infos", associated_accounts.len());
+    msg!(
+        "Got {:?} associated accounts through account infos",
+        associated_accounts_infos.len()
+    );
     // TODO: if it's not in there, do we want the user to allow for adding this?
-    let updated_wcall = if associated_accounts.len() > 0 {
+    let updated_wcall = if associated_accounts_infos.len() > 0 {
+        let associated_account_is_writable = associated_accounts_infos.iter()
+            .map(|info| if info.is_writable { 1 } else { 0 })
+            .collect();
+        let associated_accounts = associated_accounts_infos.iter().map(|info| *info.key).collect();
+        let associated_account_is_signer = associated_accounts_infos.iter()
+            .map(|info| if info.is_signer { 1 } else { 0 })
+            .collect();
+
         match wcall {
-            WCall::Simple { wcall, input, .. } => {
-                WCall::Simple {
-                    wcall, input, associated_accounts
-                }
-            }
-            WCall::Chained { wcall, callback_basket, input, output, .. } => {
-                WCall::Chained {
-                    wcall, input, associated_accounts, callback_basket, output
-                }
-            }
+            WCall::Simple { wcall, ref input, .. } => WCall::Simple {
+                wcall,
+                input: input.to_string(),
+                associated_accounts,
+                associated_account_is_signer,
+                associated_account_is_writable,
+            },
+            WCall::Chained {
+                wcall,
+                ref callback_basket,
+                ref input,
+                ref output,
+                ..
+            } => WCall::Chained {
+                wcall,
+                input: input.to_string(),
+                associated_accounts,
+                associated_account_is_signer,
+                associated_account_is_writable,
+                output: output.to_string(),
+                callback_basket: callback_basket.to_string(),
+            },
         }
     } else {
         wcall
     };
 
-    let call_input = match wcall {
+    let call_input = match updated_wcall {
         WCall::Simple { ref input, .. } => input,
         WCall::Chained { ref input, .. } => input,
     };
@@ -67,9 +90,9 @@ fn process_register_call<'a>(
     }
     let _ = prog_state.wrapped_calls.push(WCallEntry {
         name: name.clone(),
-        wcall: wcall,
+        wcall: updated_wcall,
     });
-    prog_state.write_new_prog_state(program_info)?;
+    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
     msg!("MALLOC LOG: registered call '{}'", name);
     Ok(())
 }
@@ -95,7 +118,7 @@ fn process_new_supported_wrapped_call_input<'a>(
         msg!("MALLOC LOG: This input has already been registered");
         return Err(ProgramError::InvalidInstructionData);
     }
-    prog_state.write_new_prog_state(program_info)?;
+    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
     msg!("MALLOC LOG: registered new call input '{}'", input_name);
     Ok(())
 }
@@ -256,7 +279,7 @@ fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
         return Err(ProgramError::InvalidInstructionData);
     }
     let new_state = ProgState::new();
-    let _ = new_state.write_new_prog_state(program_info);
+    ProgState::write_new_prog_state(new_state.pack(), program_info)?;
     msg!("MALLOC LOG: init malloc done!");
     Ok(())
 }
@@ -276,7 +299,7 @@ fn process_create_basket<'a>(
         name: name.clone(),
         basket: new_basket,
     });
-    let _ = prog_state.write_new_prog_state(program_info)?;
+    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
     msg!("MALLOC LOG: created new basket '{}'", name);
     Ok(())
 }
@@ -336,7 +359,7 @@ pub fn process_instruction<'a>(
                 program_info,
                 name,
                 wcall,
-                associated_accounts.into_iter().map(|account| *account.key).collect()
+                associated_accounts.to_owned()
             )
         }
         ProgInstruction::EnactBasket {
@@ -369,20 +392,16 @@ pub fn process_instruction<'a>(
             calls,
             splits,
             input,
-        } => {
-            process_create_basket(&mut prog_state, program_info, name, calls, splits, input)
-        }
+        } => process_create_basket(&mut prog_state, program_info, name, calls, splits, input),
         ProgInstruction::NewSupportedWCallInput {
             input_name,
             input_address,
-        } => {
-            process_new_supported_wrapped_call_input(
-                &mut prog_state,
-                program_info,
-                input_name,
-                input_address,
-            )
-        }
+        } => process_new_supported_wrapped_call_input(
+            &mut prog_state,
+            program_info,
+            input_name,
+            input_address,
+        ),
     }
 }
 

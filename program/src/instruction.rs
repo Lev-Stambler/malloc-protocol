@@ -3,13 +3,13 @@
 // use crate::error::TokenError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
+    account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},
     msg,
     program_error::ProgramError,
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
-    account_info::AccountInfo,
 };
 use std::{convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
@@ -143,29 +143,19 @@ impl ProgState {
         }
     }
 
-    // TODO: crazy enifficient
-    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
-        let mut encoded = self.pack();
-        // let first_0 = encoded.iter().position(|&r| r == 0);
-        // let encoded_trimmed = if let Some(first_0_ind) = first_0 {
-        //     &encoded[0..first_0_ind]
-        // } else {
-        //     &encoded
-        // };
-        account_info.try_borrow_mut_data()?.copy_from_slice(encoded.as_slice());
+    pub fn write_new_prog_state<'a>(mut encoded: Vec<u8>, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        account_info.data.replace(&mut encoded);
         Ok(())
     }
 
-    // TODO: make use of something more efficient than JSON
-    /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        // let first_0 = input.iter().position(|&r| r == 0);
+        let first_0 = input.iter().position(|&r| r == 0);
 
-        // let inp_trimmed = if let Some(first_0_ind) = first_0 {
-        //     &input[0..first_0_ind]
-        // } else {
-        //     input
-        // };
+        let inp_trimmed = if let Some(first_0_ind) = first_0 {
+            &input[0..first_0_ind]
+        } else {
+            input
+        };
         Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
@@ -183,6 +173,7 @@ impl ProgInstruction {
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+        msg!("Number of bytes on input {}", input.len());
         Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData

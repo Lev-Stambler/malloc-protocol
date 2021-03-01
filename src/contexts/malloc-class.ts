@@ -36,6 +36,7 @@ import {
   RegisterCallInstructionData,
   MallocStateBorsh,
   InstructionData,
+  InitMallocInstructionData,
 } from "../models/malloc";
 import { fakeMallocState } from "../utils/fakeState";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
@@ -587,12 +588,16 @@ export class Malloc {
       alert("please connect your wallet first");
       throw new Error("wallet not connected");
     }
+
+    const instructionData = InstructionData.createNew(
+      InitMallocInstructionData.createNew()
+    );
     return new TransactionInstruction({
       keys: [
         {
           isWritable: true,
           pubkey: this.progStateAccount,
-          isSigner: false,
+          isSigner: true,
         },
         {
           isWritable: false,
@@ -601,7 +606,7 @@ export class Malloc {
         },
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ InitMalloc: {} })),
+      data: Buffer.from(instructionData.encode()),
     });
   }
 
@@ -639,63 +644,6 @@ export class Malloc {
     });
   }
 
-  // public registerCall(args: RegisterCallArgs) {
-  //     if (!this.wallet && !this.userPubKeyAlt) {
-  //       alert("please connect your wallet first");
-  //       throw new Error("wallet not connected");
-  //     }
-
-  //     let wcall: any;
-  //     let associated_accounts: number[][];
-
-  //     if (args.wcall.hasOwnProperty("Simple")) {
-  //       wcall = args.wcall as { Simple: WCallSimple<number[]> };
-  //       wcall.Simple.wcall = wcall.Simple.wcall;
-  //       associated_accounts = (args.wcall as { Simple: WCallSimple<number[]> })
-  //         .Simple.associated_accounts;
-  //       wcall.Simple.associated_accounts = [];
-  //     } else {
-  //       wcall = args.wcall as { Chained: WCallChained<number[]> };
-  //       wcall.Chained.wcall = wcall.Chained.wcall;
-  //       associated_accounts = (args.wcall as { Simple: WCallChained<number[]> })
-  //         .Simple.associated_accounts;
-  //       wcall.Chained.associated_accounts = [];
-  //     }
-
-  //     const sending_args = {
-  //       call_name: args.call_name,
-  //       wcall_enum: wcall,
-  //     };
-
-  //     return new TransactionInstruction({
-  //       keys: [
-  //         {
-  //           isWritable: true,
-  //           pubkey: this.progStateAccount,
-  //           isSigner: false,
-  //         },
-  //         {
-  //           isWritable: true,
-  //           pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-  //           isSigner: true,
-  //         },
-  //         ...associated_accounts.map((account: number[]) => {
-  //           return {
-  //             isWritable: false,
-  //             isSigner: false,
-  //             pubkey: new PublicKey(account),
-  //           };
-  //         }),
-  //       ],
-  //       programId: this.progId,
-  //       data: Buffer.from(
-  //         JSON.stringify({
-  //           RegisterCall: sending_args,
-  //         })
-  //       ),
-  //     });
-  //   }
-
   public registerCall(args: RegisterCallArgs) {
     if (!this.wallet && !this.userPubKeyAlt) {
       alert("please connect your wallet first");
@@ -714,8 +662,8 @@ export class Malloc {
         wcall.Simple.associated_account_is_writable;
       associated_account_is_signer = wcall.Simple.associated_account_is_signer;
       wcall.Simple.associated_accounts = [];
-      wcall.Simple.associated_account_is_writable = []
-      wcall.Simple.associated_account_is_signer = []
+      wcall.Simple.associated_account_is_writable = [];
+      wcall.Simple.associated_account_is_signer = [];
     } else {
       wcall = args.wcall as { Chained: WCallChained<PublicKey> };
       wcall.Chained.wcall = wcall.Chained.wcall;
@@ -724,8 +672,8 @@ export class Malloc {
         wcall.Simple.associated_account_is_writable;
       associated_account_is_signer = wcall.Simple.associated_account_is_signer;
       wcall.Simple.associated_accounts = [];
-      wcall.Simple.associated_account_is_writable = []
-      wcall.Simple.associated_account_is_signer = []
+      wcall.Simple.associated_account_is_writable = [];
+      wcall.Simple.associated_account_is_signer = [];
     }
     let associated_account_metas: AccountMeta[] = associated_accounts.map(
       (key, i) => {
@@ -859,3 +807,60 @@ export class Malloc {
     return Object.keys(this.state.wrapped_calls);
   }
 }
+
+// public registerCall(args: RegisterCallArgs) {
+//     if (!this.wallet && !this.userPubKeyAlt) {
+//       alert("please connect your wallet first");
+//       throw new Error("wallet not connected");
+//     }
+
+//     let wcall: any;
+//     let associated_accounts: number[][];
+
+//     if (args.wcall.hasOwnProperty("Simple")) {
+//       wcall = args.wcall as { Simple: WCallSimple<number[]> };
+//       wcall.Simple.wcall = wcall.Simple.wcall;
+//       associated_accounts = (args.wcall as { Simple: WCallSimple<number[]> })
+//         .Simple.associated_accounts;
+//       wcall.Simple.associated_accounts = [];
+//     } else {
+//       wcall = args.wcall as { Chained: WCallChained<number[]> };
+//       wcall.Chained.wcall = wcall.Chained.wcall;
+//       associated_accounts = (args.wcall as { Simple: WCallChained<number[]> })
+//         .Simple.associated_accounts;
+//       wcall.Chained.associated_accounts = [];
+//      && !this.userPubKeyAlt}
+
+//     const sending_args = {
+//       call_name: args.call_name,
+//       wcall_enum: wcall,
+//     };
+
+//     return new TransactionInstruction({
+//       keys: [
+//         {
+//           isWritable: true,
+//           pubkey: this.progStateAccount,
+//           isSigner: false,
+//         },
+//         {
+//           isWritable: true,
+//           pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+//           isSigner: true,
+//         },
+//         ...associated_accounts.map((account: number[]) => {
+//           return {
+//             isWritable: false,
+//             isSigner: false,
+//             pubkey: new PublicKey(account),
+//           };
+//         }),
+//       ],
+//       programId: this.progId,
+//       data: Buffer.from(
+//         JSON.stringify({
+//           RegisterCall: sending_args,
+//         })
+//       ),
+//     });
+//   }
