@@ -12,6 +12,7 @@ import {
 //@ts-ignore
 import bs58 from "bs58";
 import { writeFileSync } from 'fs';
+import {InitMallocInstructionData, InstructionData} from "../../src/models/malloc"
 
 import {programId} from "../../src/config/program_id.json"
 
@@ -58,6 +59,7 @@ async function initDataAccount(
 }
 
 async function initMallocData(connection: Connection, data_account: Account) {
+  const instructionData = InstructionData.createNew(InitMallocInstructionData.createNew());
   const instructionInit = new TransactionInstruction({
     keys: [
       {
@@ -67,7 +69,7 @@ async function initMallocData(connection: Connection, data_account: Account) {
       },
     ],
     programId: progId,
-    data: Buffer.from(JSON.stringify({ InitMalloc: {} })),
+    data: Buffer.from(instructionData.encode()),
   });
   try {
     await sendAndConfirmTransaction(

@@ -1,8 +1,8 @@
 //! Instruction types
 
 // use crate::error::TokenError;
+use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
@@ -10,12 +10,9 @@ use solana_program::{
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
+    account_info::AccountInfo,
 };
-use std::{
-    collections::{BTreeMap, HashMap},
-    convert::TryInto,
-    hash::Hash,
-};
+use std::{convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
 
 type WCallAddr = Pubkey;
@@ -28,7 +25,7 @@ pub const MIN_SIGNERS: usize = 1;
 /// Maximum number of multisignature signers (max N)
 pub const MAX_SIGNERS: usize = 11;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
 pub enum WCall {
     Simple {
         wcall: WCallAddr,
@@ -41,10 +38,15 @@ pub enum WCall {
         input: WCallInputName,
         output: WCallInputName,
         associated_accounts: Vec<Pubkey>,
+        // ! these use u8's for probably poor reasons
+        // marks whether or not corresponding associated account needs to be writable
+        associated_account_is_writable: Vec<u8>,
+        // marks whether or not corresponding
+        associated_account_is_signer: Vec<u8>,
     },
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Default)]
 pub struct Basket {
     /// The calls that the basket makes
     pub calls: Vec<WCallName>,
@@ -56,21 +58,39 @@ pub struct Basket {
     /// the input SPL type address
     pub input: WCallInputName,
 }
+
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct WCallEntry {
+    pub(crate) name: WCallName,
+    pub(crate) wcall: WCall,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Default)]
+pub struct BasketEntry {
+    pub(crate) name: BasketName,
+    pub(crate) basket: Basket,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Default)]
+pub struct WCallInputEntry {
+    pub(crate) name: WCallInputName,
+    pub(crate) input: Pubkey,
+}
+
 /// The program state
-#[derive(Serialize, Deserialize, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Default)]
 pub struct ProgState {
     /// A map of all names to pubkeys for the calls
-    /// TODO: make more efficient than std HashMap
-    pub wrapped_calls: BTreeMap<WCallName, WCall>,
+    pub wrapped_calls: Vec<WCallEntry>,
     /// All the baskets with the basket name as a key
-    pub baskets: BTreeMap<BasketName, Basket>,
+    pub baskets: Vec<BasketEntry>,
     /// map from WCallName to input it takes
-    pub supported_wrapped_call_inputs: BTreeMap<WCallInputName, Pubkey>,
+    pub supported_wrapped_call_inputs: Vec<WCallInputEntry>,
 }
 
 /// Instructions supported by the token program.
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, BorshSerialize, BorshDeserialize)]
 pub enum ProgInstruction {
     RegisterCall {
         call_name: WCallName,
@@ -90,7 +110,9 @@ pub enum ProgInstruction {
     /// w[1][0]...
     EnactBasket {
         basket_name: BasketName,
+        rent_given: u64,
     },
+
     NewSupportedWCallInput {
         input_name: String,
         input_address: Pubkey,
@@ -113,32 +135,36 @@ impl ProgState {
     pub fn new() -> Self {
         // TODO: checks
         ProgState {
-            wrapped_calls: BTreeMap::default(),
-            baskets: BTreeMap::default(),
-            supported_wrapped_call_inputs: BTreeMap::default(),
+            wrapped_calls: Vec::new(),
+            baskets: Vec::new(),
+            supported_wrapped_call_inputs: Vec::new(),
         }
     }
 
-    pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
-        unsafe {
-            let encoded = self.pack();
-            let data = from_raw_parts_mut(data_ptr, encoded.len());
-            data.copy_from_slice(encoded.as_slice());
-        };
+    // TODO: crazy enifficient
+    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        let mut encoded = self.pack();
+        // let first_0 = encoded.iter().position(|&r| r == 0);
+        // let encoded_trimmed = if let Some(first_0_ind) = first_0 {
+        //     &encoded[0..first_0_ind]
+        // } else {
+        //     &encoded
+        // };
+        account_info.try_borrow_mut_data()?.copy_from_slice(encoded.as_slice());
         Ok(())
     }
 
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let first_0 = input.iter().position(|&r| r == 0);
+        // let first_0 = input.iter().position(|&r| r == 0);
 
-        let inp_trimmed = if let Some(first_0_ind) = first_0 {
-            &input[0..first_0_ind]
-        } else {
-            input
-        };
-        serde_json::from_slice(inp_trimmed).map_err(|e| {
+        // let inp_trimmed = if let Some(first_0_ind) = first_0 {
+        //     &input[0..first_0_ind]
+        // } else {
+        //     input
+        // };
+        Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
         })
@@ -147,14 +173,14 @@ impl ProgState {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        serde_json::to_vec(self).unwrap()
+        self.try_to_vec().unwrap()
     }
 }
 impl ProgInstruction {
     // TODO: make use of something more efficient than JSON
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        serde_json::from_slice(input).map_err(|e| {
+        Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
@@ -163,7 +189,7 @@ impl ProgInstruction {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        serde_json::to_vec(self).unwrap()
+        self.try_to_vec().unwrap()
     }
 }
 

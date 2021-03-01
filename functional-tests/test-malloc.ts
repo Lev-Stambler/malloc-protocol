@@ -23,6 +23,7 @@ import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
 import { createTokenAccount } from "../src/actions";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
+const SolanaNet = "https://devnet.solana.com";
 const SIMPLE_PASS_THROUGH_WCALL = new PublicKey(
   "G3bXM8ioQhAGJfCyQL9v6W4x1FVcFjGgtSgRiwkfYa4a"
 );
@@ -49,11 +50,6 @@ async function getDataParsed() {
 }
 
 async function initDataAccount() {
-  // const instructionInit = new TransactionInstruction({
-  //   keys: [],
-  //   programId: new PublicKey(progId),
-  //   data: Buffer.from(JSON.stringify({})),
-  // });
   const createAccountTransaction = SystemProgram.createAccount({
     fromPubkey: account.publicKey,
     newAccountPubkey: data_account.publicKey,
@@ -109,31 +105,31 @@ async function sendGeneralInstruction(
   try {
     const tx = new Transaction();
     instructions.forEach((inst) => {
-      console.log(
-        "Adding instruction with data",
-        new TextDecoder("utf-8").decode(inst.data),
-        "And with account pubkeys",
-        inst.keys.map((key) => {
-          return {
-            Pubkey: key.pubkey.toBase58(),
-          };
-        })
-        // inst.keys.map(key => key.pubkey.toBase58())
-      );
+      // console.log(
+      //   "Adding instruction with data",
+      //   new TextDecoder("utf-8").decode(inst.data),
+      //   "And with account pubkeys",
+      //   inst.keys.map((key) => {
+      //     return {
+      //       Pubkey: key.pubkey.toBase58(),
+      //     };
+      //   })
+      // );
       tx.add(inst);
     });
-    await sendAndConfirmTransaction(connection, tx, [account, ...signers], {
-      skipPreflight: true,
-      commitment: "singleGossip",
-    });
+    const txRet = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [account, ...signers],
+      {
+        skipPreflight: true,
+        commitment: "singleGossip",
+      }
+    );
     const data_account_info = await connection.getAccountInfo(
       data_account.publicKey
     );
-    // console.log(
-    //   new TextDecoder("utf-8").decode(
-    //     new Uint8Array(data_account_info?.data || [])
-    //   )
-    // );
+    return txRet;
   } catch (e) {
     console.error(e);
     throw e;
@@ -153,7 +149,7 @@ async function initMallocData() {
 }
 
 async function initAccounts(): Promise<Connection> {
-  connection = new Connection("https://devnet.solana.com", "singleGossip");
+  connection = new Connection(SolanaNet, "singleGossip");
   const lamports = 10 * 1000000000;
   console.log("new data account:", data_account.publicKey.toBase58());
   await connection.requestAirdrop(account.publicKey, lamports);
@@ -175,9 +171,9 @@ async function fundWithWSol(amount: number): Promise<PublicKey> {
 }
 
 describe("Run a standard set of Malloc tests", async function () {
-  this.timeout(20000);
+  this.timeout(200000);
   before(async function () {
-    this.timeout(20000);
+    this.timeout(200000);
     connection = await initAccounts();
     await initMallocData();
   });
@@ -198,33 +194,23 @@ describe("Run a standard set of Malloc tests", async function () {
       undefined,
       {}
     );
-    // await doGeneralInstrSingleton({
-
-    // })
     await doGeneralInstrSingleton({
       NewSupportedWCallInput: {
         input_name: "WSol",
         input_address: [...WRAPPED_SOL_MINT.toBuffer()],
       },
     });
-    // await doGeneralInstrSingleton({
-    //   RegisterCall: {
-    //     call_name: "Just buy some more Eth",
-    //     // dummy public key
-    //     wcall_enum: {
-    //       Simple: {
-    //         wcall: serializePubkey(
-    //           new PublicKey("2FPyTwcZLUg1MDrwsyoP4D6s1tM7hAkHYRjkNb5w6Pxk")
-    //         ),
-    //         input: "WSol",
-    //         associated_accounts: [],
-    //       },
-    //     },
-    //   },
-    // });
+
     const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
     await malloc_class.refresh();
-    const associatedAccountSigners: Account[] = []
+    const associatedAccountSigners: Account[] = [];
+    const tok = new Token(
+      connection,
+      WRAPPED_SOL_MINT,
+      TOKEN_PROGRAM_ID,
+      account
+    );
+
     const I_GET_THE_MONEY = createTokenAccount(
       createWCallAssociatedAccountsInsts,
       account.publicKey,
@@ -233,7 +219,16 @@ describe("Run a standard set of Malloc tests", async function () {
       account.publicKey,
       associatedAccountSigners
     );
-    await sendGeneralInstruction(createWCallAssociatedAccountsInsts, associatedAccountSigners)
+    await sendGeneralInstruction(
+      createWCallAssociatedAccountsInsts,
+      associatedAccountSigners
+    );
+    const iGetMoneyStartingInfo = await tok.getAccountInfo(I_GET_THE_MONEY);
+    console.log(
+      "I get money starts out with",
+      iGetMoneyStartingInfo.amount.toString()
+    );
+
     await doGeneralInstrSingleton({
       RegisterCall: {
         call_name: "takes money from one account to another",
@@ -247,14 +242,44 @@ describe("Run a standard set of Malloc tests", async function () {
         },
       },
     });
+    await malloc_class.refresh();
+    // TODO: somehow how registering this WCall causes issues...
+    await doGeneralInstrSingleton({
+      RegisterCall: {
+        call_name: "takes money from one account to another chained",
+        // dummy public key
+        wcall_enum: {
+          Chained: {
+            wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
+            input: "WSol",
+            output: "WSol",
+            callback_basket: "Just a simp",
+            associated_accounts: [],
+          },
+        },
+      },
+    });
+    await malloc_class.refresh();
     await doGeneralInstrSingleton({
       CreateBasket: {
         name: "Just a simp",
         calls: [
           "takes money from one account to another",
-          // "Just buy some more Eth",
+          "takes money from one account to another",
+          // "takes money from one account to another",
         ],
-        splits: [1000,],
+        splits: [500, 500],
+        input: "WSol",
+      },
+    });
+    await doGeneralInstrSingleton({
+      CreateBasket: {
+        name: "Just a chained",
+        calls: [
+          "takes money from one account to another chained",
+          // "takes money from one account to another",
+        ],
+        splits: [1000],
         input: "WSol",
       },
     });
@@ -264,65 +289,65 @@ describe("Run a standard set of Malloc tests", async function () {
     await malloc_class.refresh();
     const rent = await malloc_class.getEphemeralAccountRent();
     const insts: TransactionInstruction[] = [];
-    const basketNode = malloc_class.getCallGraph("Just a simp");
-    console.log("Basket node", basketNode);
-    const amount = 100 * 1000;
-    const fundedWSolAccount = await fundWithWSol(amount + 10);
+    const amountInFundedWSol = 1 * 1000 * 1000 * 1000;
+    const fundedWSolAccount = await fundWithWSol(amountInFundedWSol + 1000);
 
+    const fundedWSolInfo = await tok.getAccountInfo(fundedWSolAccount);
+
+    console.log("WSol in funded with sol:", fundedWSolInfo.amount.toNumber());
+
+    const basketNode = malloc_class.getCallGraph("Just a simp");
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
       fundedWSolAccount,
       await malloc_class.getEphemeralAccountRent(),
-      amount
+      amountInFundedWSol
     );
-    console.log(
-      "Accounts:",
-      accounts.map((k) => k.publicKey.toBase58())
-    );
-    console.log(insts.length);
 
     // await sendGeneralInstruction([insts[0]], [accounts[0],])
     // await sendGeneralInstruction([insts[1]], [accounts[0]])
     // await sendGeneralInstruction([insts[2]], [accounts[0], accounts[2]])
-    for (let i = 0; i < insts.length; i++) {
-      // await sendGeneralInstruction([insts[i]], accounts)
-    }
-    await sendGeneralInstruction(insts, accounts);
+    const txRet = await sendGeneralInstruction(insts, accounts);
+    console.log("ENACT BASKET DONE, ", txRet);
 
     const data = (await getDataParsed()) as MallocState;
     console.log("baskets:", data.baskets);
-    assert(data.wrapped_calls["Just buy some more Eth"]);
+    assert(data.wrapped_calls["takes money from one account to another"]);
     assert(data.supported_wrapped_call_inputs["WSol"]);
-    assert(data.baskets["Just buy just buy eth"]);
-    console.log(TOKEN_PROGRAM_ID.toBase58())
-    const tok = new Token(connection, WRAPPED_SOL_MINT, TOKEN_PROGRAM_ID, account);
-    const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY)
-    console.log(iGetMoneyInfo.amount)
+    assert(data.baskets["Just a simp"]);
+    const iGetMoneyInfo = await tok.getAccountInfo(I_GET_THE_MONEY);
+    const amountIncrease = iGetMoneyInfo.amount
+      .sub(iGetMoneyStartingInfo.amount)
+      .toNumber();
+    console.log("I get money gets this may more coins", amountIncrease);
+    // account for payments
+    assert(amountInFundedWSol === amountIncrease);
+    const fundedWSolInfoNew = await tok.getAccountInfo(fundedWSolAccount);
+    console.log(
+      "WSol is now funded with sol:",
+      fundedWSolInfoNew.amount.toNumber()
+    );
+
+    // TODO change to sep fn
+    const instsChained = [];
+    const basketChainedNode = malloc_class.getCallGraph("Just a chained");
+    const accountsChained = malloc_class.invokeCallGraph(
+      instsChained,
+      basketChainedNode,
+      // TODO: make seconded funded with sol account
+      I_GET_THE_MONEY,
+      await malloc_class.getEphemeralAccountRent(),
+      amountInFundedWSol
+    );
+    const txRetChainedEph = await sendGeneralInstruction(
+      instsChained.slice(0, instsChained.length - 1),
+      accountsChained
+    );
+    const txRetChained = await sendGeneralInstruction(
+      [instsChained[instsChained.length - 1]],
+      accountsChained
+    );
+    console.log("CHAINED TX for first part", txRetChained);
   });
 });
-// pub enum WCall {
-//   Simple(WCallAddr),
-//   Chained(WCallAddr, BasketName),
-// }
-
-// pub enum ProgInstruction {
-//   RegisterCall {
-//       call_input: WCallInputName,
-//       call_name: WCallName,
-//       wcall: WCall,
-//   },
-//   CreateBasket {
-//       name: BasketName,
-//       calls: Vec<WCallName>,
-//       splits: Vec<i32>,
-//   },
-//   EnactBasket {
-//       basket_name: BasketName,
-//   },
-//   NewSupportedWCallInput {
-//       input_name: String,
-//       input_address: Pubkey
-//   },
-//   InitMalloc {},
-// }
