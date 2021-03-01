@@ -144,8 +144,17 @@ impl ProgState {
     }
 
     pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
-        let encoded = self.pack();
-        (*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
+        unsafe {
+            let encoded = self.pack();
+            let prog_data_ptr = (account_info.data.borrow()).as_ref().as_ptr() as *mut u8;
+            let data = from_raw_parts_mut((prog_data_ptr) as *mut u8, encoded.len());
+            // let data_ptr = account_info.data.borrow_mut().as_mut_ptr();
+            // let data = from_raw_parts_mut(data_ptr, encoded.len());
+            // data.copy_from_slice(encoded.as_slice());
+        };
+
+        //let encoded = self.pack();
+        //(*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
         Ok(())
     }
 
