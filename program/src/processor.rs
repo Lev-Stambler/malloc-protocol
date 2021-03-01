@@ -18,7 +18,7 @@ fn process_register_call(
     prog_state: &mut ProgState,
     program_data: *mut u8,
     name: String,
-    wcall: WCall,
+    mut wcall: WCall,
     associated_accounts: Vec<Pubkey>
 ) -> ProgramResult {
     if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
