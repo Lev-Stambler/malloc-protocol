@@ -177,12 +177,12 @@ describe("Run a standard set of Malloc tests", async function () {
 
     await initMallocData(malloc_class);
 
-    await doGeneralInstrSingleton(
-      malloc_class.registerNewSupportedWCall({
-        input_name: "WSol",
-        input_address: [...WRAPPED_SOL_MINT.toBuffer()],
-      })
-    );
+    let insts = [];
+    malloc_class.registerNewSupportedWCall(insts, {
+      input_name: "WSol",
+      input_address: WRAPPED_SOL_MINT,
+    });
+    await doGeneralInstrSingleton(insts[0]);
   });
 
   it("fails if already registered", async () => {
@@ -195,7 +195,7 @@ describe("Run a standard set of Malloc tests", async function () {
   });
 
   xit("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
-    let instsDummy = [];
+    let instsDummy: TransactionInstruction[] = [];
 
     const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
     await malloc_class.refresh();
@@ -225,19 +225,23 @@ describe("Run a standard set of Malloc tests", async function () {
       iGetMoneyStartingInfo.amount.toString()
     );
 
-    await doGeneralInstrSingleton(
+    instsDummy = [];
+    instsDummy.push(
       malloc_class.registerCall({
         call_name: "takes money from one account to another",
         // dummy public key
         wcall: {
           Simple: {
-            wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
+            wcall: SIMPLE_PASS_THROUGH_WCALL,
             input: "WSol",
-            associated_accounts: [serializePubkey(I_GET_THE_MONEY)],
+            associated_accounts: [I_GET_THE_MONEY],
+            associated_account_is_writable: [1],
+            associated_account_is_signer: [0],
           },
         },
       })
     );
+    await doGeneralInstrSingleton(instsDummy[0]);
     await malloc_class.refresh();
     await doGeneralInstrSingleton(
       malloc_class.registerCall({
@@ -245,11 +249,13 @@ describe("Run a standard set of Malloc tests", async function () {
         // dummy public key
         wcall: {
           Chained: {
-            wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
+            wcall: SIMPLE_PASS_THROUGH_WCALL,
             input: "WSol",
             output: "WSol",
             callback_basket: "Just a simp",
             associated_accounts: [],
+            associated_account_is_signer: [],
+            associated_account_is_writable: []
           },
         },
       })
@@ -375,15 +381,14 @@ describe("Run a standard set of Malloc tests", async function () {
 
     const wcallName = "SWAP TOK_A for TOK_B";
 
-    await sendGeneralInstruction([
-      malloc_class.registerNewSupportedWCall({
-        input_name: "TOK A",
-        input_address: serializePubkey(TOKEN_A_MINT),
-      }),
-    ]);
-    await sendGeneralInstruction([
-      registerTokSwapWCall(malloc_class, wcallName, "TOK A", destAccount),
-    ]);
+    insts = [];
+    malloc_class.registerNewSupportedWCall(insts, {
+      input_name: "TOK A",
+      input_address: TOKEN_A_MINT,
+    }),
+      await sendGeneralInstruction([
+        registerTokSwapWCall(malloc_class, wcallName, "TOK A", destAccount),
+      ]);
     console.log("Registered WCall");
     await malloc_class.refresh();
     assert(

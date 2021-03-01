@@ -45,8 +45,8 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
         model.addLink(link);
 
 
-        if (call.hasOwnProperty("callbackBasket")) {
-          const callbackBasket = (call as WCallChainedNode).callbackBasket
+        if (call.hasOwnProperty("callback_basket")) {
+          const callbackBasket = (call as WCallChainedNode).callback_basket;
           const callbackNode = createBasketNode(callbackBasket);
           const callOutput = callNode.addOutPort(callbackBasket.name);
           const callbackInput = callbackNode.addInPort(call.name);
@@ -113,8 +113,8 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
     <>
       <FindBasketModal isVisible={basketModalVisible} onCancel={() => setBasketModalVisible(false)} onOk={addBasketOk}/>
       <FindCallModal isVisible={callModalVisible} onCancel={() => setCallModalVisible(false)} onOk={addCallOk}/>
-      <div className="flex flex-row h-12 max-h-full w-full justify-end">
-        <div className="flex-intial h-full px-4">
+      <div className="flex flex-row justify-end w-full h-12 max-h-full">
+        <div className="h-full px-4 flex-intial">
           <Popover
             placement="topRight"
             title="Create New"
@@ -124,7 +124,7 @@ export function GraphEditorToolbar(props: GraphEditorToolbarProps) {
             <Button type="default" size="large" icon={<PlusOutlined/>}/> 
           </Popover>
         </div>
-        <div className="flex-intial h-full px-4">
+        <div className="h-full px-4 flex-intial">
           <Tooltip placement="bottom" title={<span>delete selected elements</span>} >
             <Button type="default" size="large" icon={<DeleteOutlined/>} onClick={deleteSelectedElements}/> 
           </Tooltip>

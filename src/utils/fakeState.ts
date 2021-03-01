@@ -46,21 +46,34 @@ export function fakeAccount(): Account {
 }
 
 export function fakeWCallChained(callback_basket: string, output: string): WCallChained<PublicKey> {
+  const associatedAccountInfo = [...Array(randRange(1, 12))].map(_ => ({
+    info: fakeAccount().publicKey,
+    isSigner: random.boolean(),
+    isWritable: random.boolean()
+  }));
   return {
     input: fakeInput(),
     output: output,
     wcall: (new Account()).publicKey,
     callback_basket: callback_basket,
-    associated_accounts: [...Array(randRange(1, 12))].map(_ => fakeAccount().publicKey),
+    associated_accounts: associatedAccountInfo.map(val => val.info),
+    associated_account_is_signer: associatedAccountInfo.map(val => val.isSigner),
+    associated_account_is_writable: associatedAccountInfo.map(val => val.isWritable)
   }
 }
 
 export function fakeWCallSimple(): WCallSimple<PublicKey> {
-
+  const associatedAccountInfo = [...Array(randRange(1, 12))].map(_ => ({
+    info: fakeAccount().publicKey,
+    isSigner: random.boolean(),
+    isWritable: random.boolean()
+  }));
   return {
     input: fakeInput(),
     wcall: (new Account()).publicKey,
-    associated_accounts: [...Array(randRange)].map(_ => fakeAccount().publicKey)
+    associated_accounts: associatedAccountInfo.map(val => val.info),
+    associated_account_is_signer: associatedAccountInfo.map(val => val.isSigner),
+    associated_account_is_writable: associatedAccountInfo.map(val => val.isWritable)
   }
 }
 

@@ -30,6 +30,12 @@ import {
   SPLIT_SUM,
   MallocState,
   NewSupportedWCallInput,
+  CreateBasketInstructionData,
+  EnactBasketInstructionData,
+  NewSupportedWCallInputInstructionData,
+  RegisterCallInstructionData,
+  MallocStateBorsh,
+  InstructionData,
 } from "../models/malloc";
 import { fakeMallocState } from "../utils/fakeState";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
@@ -74,85 +80,28 @@ export class Malloc {
     this.userPubKeyAlt = pubkey;
   }
 
-  public registerCall(args: RegisterCallArgs) {
-    if (!this.wallet && !this.userPubKeyAlt) {
-      alert("please connect your wallet first");
-      throw new Error("wallet not connected");
-    }
-
-    let wcall: any;
-    let associated_accounts: number[][];
-
-    if (args.wcall.hasOwnProperty("Simple")) {
-      wcall = args.wcall as { Simple: WCallSimple<number[]> };
-      wcall.Simple.wcall = wcall.Simple.wcall;
-      associated_accounts = (args.wcall as { Simple: WCallSimple<number[]> })
-        .Simple.associated_accounts;
-      wcall.Simple.associated_accounts = [];
-    } else {
-      wcall = args.wcall as { Chained: WCallChained<number[]> };
-      wcall.Chained.wcall = wcall.Chained.wcall;
-      associated_accounts = (args.wcall as { Simple: WCallChained<number[]> })
-        .Simple.associated_accounts;
-      wcall.Chained.associated_accounts = [];
-    }
-
-    const sending_args = {
-      call_name: args.call_name,
-      wcall_enum: wcall,
-    };
-
-    return new TransactionInstruction({
-      keys: [
-        {
-          isWritable: true,
-          pubkey: this.progStateAccount,
-          isSigner: false,
-        },
-        {
-          isWritable: true,
-          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-          isSigner: true,
-        },
-        ...associated_accounts.map((account: number[]) => {
-          return {
-            isWritable: false,
-            isSigner: false,
-            pubkey: new PublicKey(account),
-          };
-        }),
-      ],
-      programId: this.progId,
-      data: Buffer.from(
-        JSON.stringify({
-          RegisterCall: sending_args,
-        })
-      ),
-    });
-  }
-
-  public registerNewSupportedWCall(args: NewSupportedWCallInput) {
-    if (!this.wallet && !this.userPubKeyAlt) {
-      alert("please connect your wallet first");
-      throw "No user"
-    }
-    return new TransactionInstruction({
-      keys: [
-        {
-          isWritable: true,
-          pubkey: this.progStateAccount,
-          isSigner: false,
-        },
-        {
-          isWritable: false,
-          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-          isSigner: true,
-        },
-      ],
-      programId: this.progId,
-      data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
-    });
-  }
+  // public registerNewSupportedWCall(args: NewSupportedWCallInput) {
+  //   if (!this.wallet && !this.userPubKeyAlt) {
+  //     alert("please connect your wallet first");
+  //     throw "No user"
+  //   }
+  //   return new TransactionInstruction({
+  //     keys: [
+  //       {
+  //         isWritable: true,
+  //         pubkey: this.progStateAccount,
+  //         isSigner: false,
+  //       },
+  //       {
+  //         isWritable: false,
+  //         pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+  //         isSigner: true,
+  //       },
+  //     ],
+  //     programId: this.progId,
+  //     data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
+  //   });
+  // }
 
   private convertObjToHavePubKey(state: any) {
     const keys = Object.keys(state);
@@ -172,8 +121,7 @@ export class Malloc {
   // TODO: if you are a PublicKey type convert from the number[] PublicKey
   private parseAccountState(data: Buffer): MallocState {
     const buf = trimBuffer(data);
-    const bufString = buf.toString();
-    const state = JSON.parse(bufString);
+    const state = MallocStateBorsh.decode(buf).into();
     this.convertObjToHavePubKey(state);
     console.log(state);
     return state;
@@ -227,13 +175,15 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Chained: {
-                wcall: serializePubkey(callNode.wcall),
+                wcall: callNode.wcall,
                 callback_basket: callNode.callback_basket.name,
                 output: callNode.output,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts.map((k) =>
-                  serializePubkey(k)
-                ),
+                associated_accounts: callNode.associateAccounts,
+                associated_account_is_signer:
+                  callNode.associated_account_is_signer,
+                associated_account_is_writable:
+                  callNode.associated_account_is_writable,
               },
             },
           })
@@ -245,11 +195,13 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Simple: {
-                wcall: serializePubkey(callNode.wcall),
+                wcall: callNode.wcall,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts.map((k) =>
-                  serializePubkey(k)
-                ),
+                associated_accounts: callNode.associateAccounts,
+                associated_account_is_signer:
+                  callNode.associated_account_is_signer,
+                associated_account_is_writable:
+                  callNode.associated_account_is_writable,
               },
             },
           })
@@ -573,7 +525,15 @@ export class Malloc {
               wcall: callData.wcall,
               input: callData.input,
               output: callData.output,
-              callback_basket: this.getCallGraph(callData.callback_basket),
+              callback_basket: this.getCallGraph(
+                callData.callback_basket,
+                depth - 1
+              ),
+              associateAccounts: callData.associated_accounts,
+              associated_account_is_writable:
+                callData.associated_account_is_writable,
+              associated_account_is_signer:
+                callData.associated_account_is_signer,
             } as WCallChainedNode;
           }
           default: {
@@ -584,6 +544,10 @@ export class Malloc {
               name: callName,
               input: callData.input,
               wcall: callData.wcall,
+              associated_account_is_signer:
+                callData.associated_account_is_signer,
+              associated_account_is_writable:
+                callData.associated_account_is_writable,
             } as WCallSimpleNode;
           }
         }
@@ -596,6 +560,10 @@ export class Malloc {
       alert("please connect your wallet first");
       throw new Error("wallet not connected");
     }
+    const { name, calls, splits, input } = args;
+    const instructionData = InstructionData.createNew(
+      CreateBasketInstructionData.createNew(name, calls, splits, input)
+    );
     return new TransactionInstruction({
       keys: [
         {
@@ -610,7 +578,7 @@ export class Malloc {
         },
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ CreateBasket: args })),
+      data: Buffer.from(instructionData.encode()),
     });
   }
 
@@ -660,11 +628,168 @@ export class Malloc {
       isSigner: false,
     };
 
+    const { basket_name, rent_given } = args;
+    const instructionData = InstructionData.createNew(
+      EnactBasketInstructionData.createNew(basket_name, rent_given)
+    );
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ EnactBasket: args })),
+      data: Buffer.from(instructionData.encode()),
     });
+  }
+
+  // public registerCall(args: RegisterCallArgs) {
+  //     if (!this.wallet && !this.userPubKeyAlt) {
+  //       alert("please connect your wallet first");
+  //       throw new Error("wallet not connected");
+  //     }
+
+  //     let wcall: any;
+  //     let associated_accounts: number[][];
+
+  //     if (args.wcall.hasOwnProperty("Simple")) {
+  //       wcall = args.wcall as { Simple: WCallSimple<number[]> };
+  //       wcall.Simple.wcall = wcall.Simple.wcall;
+  //       associated_accounts = (args.wcall as { Simple: WCallSimple<number[]> })
+  //         .Simple.associated_accounts;
+  //       wcall.Simple.associated_accounts = [];
+  //     } else {
+  //       wcall = args.wcall as { Chained: WCallChained<number[]> };
+  //       wcall.Chained.wcall = wcall.Chained.wcall;
+  //       associated_accounts = (args.wcall as { Simple: WCallChained<number[]> })
+  //         .Simple.associated_accounts;
+  //       wcall.Chained.associated_accounts = [];
+  //     }
+
+  //     const sending_args = {
+  //       call_name: args.call_name,
+  //       wcall_enum: wcall,
+  //     };
+
+  //     return new TransactionInstruction({
+  //       keys: [
+  //         {
+  //           isWritable: true,
+  //           pubkey: this.progStateAccount,
+  //           isSigner: false,
+  //         },
+  //         {
+  //           isWritable: true,
+  //           pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+  //           isSigner: true,
+  //         },
+  //         ...associated_accounts.map((account: number[]) => {
+  //           return {
+  //             isWritable: false,
+  //             isSigner: false,
+  //             pubkey: new PublicKey(account),
+  //           };
+  //         }),
+  //       ],
+  //       programId: this.progId,
+  //       data: Buffer.from(
+  //         JSON.stringify({
+  //           RegisterCall: sending_args,
+  //         })
+  //       ),
+  //     });
+  //   }
+
+  public registerCall(args: RegisterCallArgs) {
+    if (!this.wallet && !this.userPubKeyAlt) {
+      alert("please connect your wallet first");
+      throw new Error("wallet not connected");
+    }
+
+    let wcall: any;
+    let associated_accounts: PublicKey[];
+    let associated_account_is_signer: number[];
+    let associated_account_is_writable: number[];
+    if (args.wcall.hasOwnProperty("Simple")) {
+      wcall = args.wcall as { Simple: WCallSimple<PublicKey> };
+      wcall.Simple.wcall = wcall.Simple.wcall;
+      associated_accounts = wcall.Simple.associated_accounts;
+      associated_account_is_writable =
+        wcall.Simple.associated_account_is_writable;
+      associated_account_is_signer = wcall.Simple.associated_account_is_signer;
+      wcall.Simple.associated_accounts = [];
+      wcall.Simple.associated_account_is_writable = []
+      wcall.Simple.associated_account_is_signer = []
+    } else {
+      wcall = args.wcall as { Chained: WCallChained<PublicKey> };
+      wcall.Chained.wcall = wcall.Chained.wcall;
+      associated_accounts = wcall.Simple.associated_accounts;
+      associated_account_is_writable =
+        wcall.Simple.associated_account_is_writable;
+      associated_account_is_signer = wcall.Simple.associated_account_is_signer;
+      wcall.Simple.associated_accounts = [];
+      wcall.Simple.associated_account_is_writable = []
+      wcall.Simple.associated_account_is_signer = []
+    }
+    let associated_account_metas: AccountMeta[] = associated_accounts.map(
+      (key, i) => {
+        return {
+          isWritable: associated_account_is_writable[i] !== 0,
+          isSigner: associated_account_is_signer[i] !== 0,
+          pubkey: key,
+        };
+      }
+    );
+
+    const instructionData = InstructionData.createNew(
+      RegisterCallInstructionData.createNew(args.call_name, wcall)
+    );
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+        {
+          isWritable: true,
+          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+          isSigner: true,
+        },
+        ...associated_account_metas,
+      ],
+      programId: this.progId,
+      data: Buffer.from(instructionData.encode()),
+    });
+  }
+
+  public registerNewSupportedWCall(
+    instructions: TransactionInstruction[],
+    args: NewSupportedWCallInput
+  ) {
+    if (!this.wallet && !this.userPubKeyAlt) {
+      alert("please connect your wallet first");
+      return;
+    }
+
+    const { input_name, input_address } = args;
+    const instructionData = InstructionData.createNew(
+      NewSupportedWCallInputInstructionData.createNew(input_name, input_address)
+    );
+    instructions.push(
+      new TransactionInstruction({
+        keys: [
+          {
+            isWritable: true,
+            pubkey: this.progStateAccount,
+            isSigner: false,
+          },
+          {
+            isWritable: false,
+            pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+            isSigner: true,
+          },
+        ],
+        programId: this.progId,
+        data: Buffer.from(instructionData.encode()),
+      })
+    );
   }
 
   public async sendMallocTransaction(
@@ -692,7 +817,7 @@ export class Malloc {
 
     const callData = this.state.wrapped_calls[callName];
 
-    if ((callData as any).Chained) {
+    if (callData.hasOwnProperty("Chained")) {
       const chainedCallData = (callData as any)
         .Chained as WCallChained<PublicKey>;
       return {
@@ -701,6 +826,10 @@ export class Malloc {
         output: chainedCallData.output,
         wcall: chainedCallData.wcall,
         associateAccounts: chainedCallData.associated_accounts,
+        associated_account_is_signer:
+          chainedCallData.associated_account_is_signer,
+        associated_account_is_writable:
+          chainedCallData.associated_account_is_writable,
       };
     }
 
@@ -710,6 +839,9 @@ export class Malloc {
       input: simpleCallData.input,
       wcall: simpleCallData.wcall,
       associateAccounts: simpleCallData.associated_accounts,
+      associated_account_is_writable:
+        simpleCallData.associated_account_is_writable,
+      associated_account_is_signer: simpleCallData.associated_account_is_signer,
     };
   }
 

@@ -24,9 +24,11 @@ export const RegisterWCallView = () => {
       call_name: "Yo Mom",
       wcall: {
         Simple: {
-          wcall: serializePubkey(new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN")),
+          wcall: new PublicKey("66gbNEJwdTNqd7tqedB4z7DRMAeSHugthXMYvibyJ9DN"),
           input: "Wrapped Eth",
-          associated_accounts: []
+          associated_accounts: [],
+          associated_account_is_signer: [],
+          associated_account_is_writable: []
         }
       },
     }));
