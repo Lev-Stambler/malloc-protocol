@@ -2,6 +2,7 @@
 
 // use crate::error::TokenError;
 use borsh::{BorshDeserialize, BorshSerialize};
+use byteorder::ByteOrder;
 use solana_program::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},
@@ -88,6 +89,7 @@ pub struct ProgState {
     pub baskets: Vec<BasketEntry>,
     /// map from WCallName to input it takes
     pub supported_wrapped_call_inputs: Vec<WCallInputEntry>,
+    pub nonce: u8
 }
 
 /// Instructions supported by the token program.
@@ -141,6 +143,7 @@ impl ProgState {
             wrapped_calls: Vec::new(),
             baskets: Vec::new(),
             supported_wrapped_call_inputs: Vec::new(),
+            nonce: 1
         }
     }
 

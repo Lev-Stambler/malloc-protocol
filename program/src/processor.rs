@@ -3,7 +3,7 @@ use crate::instruction::{
     self, Basket, BasketEntry, ProgInstruction, ProgState, WCall, WCallEntry, WCallInputEntry,
 };
 use solana_program::{
-    account_info::{Account, AccountInfo, next_account_info},
+    account_info::{next_account_info, Account, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program::invoke,
@@ -12,14 +12,22 @@ use solana_program::{
     program_pack::{IsInitialized, Pack},
     pubkey::Pubkey,
 };
-use std::str::from_utf8;
+use std::{borrow::Borrow, str::from_utf8};
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
+<<<<<<< HEAD
 
 fn process_register_call<'a, 'b>(
     sender: &Pubkey,
     prog_state: &mut ProgState,
+=======
+type ProgStateResult = std::result::Result<ProgState, ProgramError>;
+
+fn process_register_call<'a, 'b>(
+    sender: &Pubkey,
+    mut prog_state: ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
@@ -39,16 +47,23 @@ fn process_register_call<'a, 'b>(
     );
     // TODO: if it's not in there, do we want the user to allow for adding this?
     let updated_wcall = if associated_accounts_infos.len() > 0 {
-        let associated_account_is_writable = associated_accounts_infos.iter()
+        let associated_account_is_writable = associated_accounts_infos
+            .iter()
             .map(|info| if info.is_writable { 1 } else { 0 })
             .collect();
-        let associated_accounts = associated_accounts_infos.iter().map(|info| *info.key).collect();
-        let associated_account_is_signer = associated_accounts_infos.iter()
+        let associated_accounts = associated_accounts_infos
+            .iter()
+            .map(|info| *info.key)
+            .collect();
+        let associated_account_is_signer = associated_accounts_infos
+            .iter()
             .map(|info| if info.is_signer { 1 } else { 0 })
             .collect();
 
         match wcall {
-            WCall::Simple { wcall, ref input, .. } => WCall::Simple {
+            WCall::Simple {
+                wcall, ref input, ..
+            } => WCall::Simple {
                 wcall,
                 input: input.to_string(),
                 associated_accounts,
@@ -97,7 +112,11 @@ fn process_register_call<'a, 'b>(
 }
 
 fn process_new_supported_wrapped_call_input<'a>(
+<<<<<<< HEAD
     prog_state: &mut ProgState,
+=======
+    mut prog_state: ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
@@ -122,7 +141,11 @@ fn process_new_supported_wrapped_call_input<'a>(
 }
 
 fn process_enact_basket<'a>(
+<<<<<<< HEAD
     prog_state: &mut ProgState,
+=======
+    prog_state: &ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     basket_name: String,
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
@@ -132,8 +155,12 @@ fn process_enact_basket<'a>(
     rent_amount: u64,
 ) -> EnactBasketResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
+<<<<<<< HEAD
     let basket = prog_state
         .baskets
+=======
+    let basket = &prog_state.baskets
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
         .iter()
         .find(|entry| basket_name == entry.name)
         .ok_or(ProgramError::Custom(144))?
@@ -144,8 +171,9 @@ fn process_enact_basket<'a>(
 
     let malloc_input = &remaining_accounts[start_idx];
     start_idx += 1;
+    let malloc_data = malloc_input.try_borrow_data()?;
     let malloc_spl_account: spl_token::state::Account =
-        Pack::unpack(malloc_input.data.borrow().as_ref())?;
+        Pack::unpack(malloc_data.as_ref())?;
     let mut amount_input = malloc_spl_account.amount;
     // Deal with unknown rent sizes for the account
     if let COption::Some(rent_res) = malloc_spl_account.is_native {
@@ -162,7 +190,7 @@ fn process_enact_basket<'a>(
         remaining_accounts.len()
     );
     let spl_ref = &spl_account;
-    for i in 0..basket.calls.len() {
+    for i in 0..(&basket.calls).len() {
         let call_name = basket.calls[i].clone();
         let split_amount = basket.splits[i];
 
@@ -289,13 +317,13 @@ fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
 }
 
 fn process_create_basket<'a>(
-    prog_state: &mut ProgState,
+    mut prog_state: ProgState,
     program_info: &'a AccountInfo<'a>,
     name: String,
     calls: Vec<String>,
     splits: Vec<u64>,
     input: String,
-) -> ProgramResult {
+) -> ProgStateResult {
     // TODO: checking
     msg!("Creating malloc basket");
     let new_basket = Basket::new(calls, splits, Pubkey::default(), input);
@@ -304,7 +332,7 @@ fn process_create_basket<'a>(
         basket: new_basket,
     });
     msg!("MALLOC LOG: created new basket '{}'", name);
-    Ok(())
+    Ok(prog_state)
 }
 
 /// Instruction processor
@@ -339,7 +367,7 @@ pub fn process_instruction<'a>(
         return Ok(());
     }
 
-    let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
+    let mut prog_state = ProgState::unpack(&program_info.try_borrow_data()?.as_ref())?;
 
     let account_info = account_info_iter
         .next()
@@ -360,7 +388,7 @@ pub fn process_instruction<'a>(
                 program_info,
                 name,
                 wcall,
-                associated_accounts.to_owned()
+                associated_accounts.to_owned(),
             )?
         }
         ProgInstruction::EnactBasket {

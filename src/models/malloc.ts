@@ -28,7 +28,7 @@ abstract class Enum {
 
   constructor(properties: any) {
     if (Object.keys(properties).length !== 1) {
-      throw new Error('Enum can only take single value');
+      throw new Error("Enum can only take single value");
     }
     Object.keys(properties).map((key: string) => {
       (this as any)[key] = properties[key];
@@ -37,7 +37,7 @@ abstract class Enum {
   }
 }
 
-class Test extends Assignable { }
+class Test extends Assignable {}
 
 export interface BasketNode {
   name: string;
@@ -77,14 +77,22 @@ export interface Basket {
   input: string;
 }
 
-const WCallSchemaObj = {
+const WCallSchemaObj = {};
 
-}
-
-const BasketSchema = new Map([[Test, {
-  kind: 'struct',
-  fields: [['creator', 'string'], ['input', 'string'], ['splits', 'Vec<u8>'], ['calls', 'Vec<string>']]
-}]])
+const BasketSchema = new Map([
+  [
+    Test,
+    {
+      kind: "struct",
+      fields: [
+        ["creator", "string"],
+        ["input", "string"],
+        ["splits", "Vec<u8>"],
+        ["calls", "Vec<string>"],
+      ],
+    },
+  ],
+]);
 
 export enum WCallTypes {
   Simple = "Simple",
@@ -127,8 +135,8 @@ export interface MallocState {
   // name to public key
   wrapped_calls: {
     [name: string]:
-    | { Chained: WCallChained<PublicKey> }
-    | { Simple: WCallSimple<PublicKey> };
+      | { Chained: WCallChained<PublicKey> }
+      | { Simple: WCallSimple<PublicKey> };
   };
   baskets: {
     [name: string]: Basket;
@@ -137,13 +145,14 @@ export interface MallocState {
   supported_wrapped_call_inputs: {
     [name: string]: PublicKey;
   };
+  nonce: number;
 }
 
 export interface RegisterCallArgs {
   call_name: string;
   wcall:
-  | { Chained: WCallChained<PublicKey> }
-  | { Simple: WCallSimple<PublicKey> };
+    | { Chained: WCallChained<PublicKey> }
+    | { Simple: WCallSimple<PublicKey> };
 }
 export interface CreateBasketArgs {
   name: string;
@@ -155,7 +164,7 @@ export interface EnactBasketArgs {
   basket_name: string;
   rent_given: number;
 }
-export interface InitMallocArgs { }
+export interface InitMallocArgs {}
 export interface NewSupportedWCallInput {
   input_name: string;
   input_address: PublicKey;
@@ -189,17 +198,24 @@ export class InstructionData extends Enum {
     return deserialize(SCHEMA, InstructionData, bytes);
   }
 
-  static createNew(value: RegisterCallInstructionData | CreateBasketInstructionData | EnactBasketInstructionData | NewSupportedWCallInputInstructionData | InitMallocInstructionData): InstructionData {
+  static createNew(
+    value:
+      | RegisterCallInstructionData
+      | CreateBasketInstructionData
+      | EnactBasketInstructionData
+      | NewSupportedWCallInputInstructionData
+      | InitMallocInstructionData
+  ): InstructionData {
     if (value instanceof RegisterCallInstructionData) {
-      return new InstructionData({"RegisterCall": value})
+      return new InstructionData({ RegisterCall: value });
     } else if (value instanceof CreateBasketInstructionData) {
-      return new InstructionData({"CreateBasket": value})
+      return new InstructionData({ CreateBasket: value });
     } else if (value instanceof EnactBasketInstructionData) {
-      return new InstructionData({"EnactBasket": value})
+      return new InstructionData({ EnactBasket: value });
     } else if (value instanceof NewSupportedWCallInputInstructionData) {
-      return new InstructionData({"NewSupportedWCallInput": value});
+      return new InstructionData({ NewSupportedWCallInput: value });
     }
-    return new InstructionData({"InitMalloc": value})
+    return new InstructionData({ InitMalloc: value });
   }
 }
 
@@ -217,17 +233,21 @@ export class RegisterCallInstructionData extends Assignable {
     return deserialize(SCHEMA, RegisterCallInstructionData, bytes);
   }
 
-  static createNew(call_name: string, wcall: WCallSimple<PublicKey> | WCallChained<PublicKey>): RegisterCallInstructionData {
-    
-    const call = isWCallChained(wcall) ? {
-      Chained: new WCallChainedBorsh({ ...wcall })
-    } : {
-        Simple: new WCallSimpleBorsh({ ...wcall })
-      };
+  static createNew(
+    call_name: string,
+    wcall: WCallSimple<PublicKey> | WCallChained<PublicKey>
+  ): RegisterCallInstructionData {
+    const call = isWCallChained(wcall)
+      ? {
+          Chained: new WCallChainedBorsh({ ...wcall }),
+        }
+      : {
+          Simple: new WCallSimpleBorsh({ ...wcall }),
+        };
     return new RegisterCallInstructionData({
       call_name,
-      wcall_enum: new WCallBorsh(call)
-    })
+      wcall_enum: new WCallBorsh(call),
+    });
   }
 }
 
@@ -249,8 +269,13 @@ export class CreateBasketInstructionData extends Assignable {
     return deserialize(SCHEMA, CreateBasketInstructionData, bytes);
   }
 
-  static createNew(name: string, calls: string[], splits: number[], input: string): CreateBasketInstructionData {
-    return new CreateBasketInstructionData({ name, calls, splits, input })
+  static createNew(
+    name: string,
+    calls: string[],
+    splits: number[],
+    input: string
+  ): CreateBasketInstructionData {
+    return new CreateBasketInstructionData({ name, calls, splits, input });
   }
 }
 
@@ -268,11 +293,14 @@ export class EnactBasketInstructionData extends Assignable {
     return deserialize(SCHEMA, EnactBasketInstructionData, bytes);
   }
 
-  static createNew(basket_name: string, rent_given: number): EnactBasketInstructionData {
+  static createNew(
+    basket_name: string,
+    rent_given: number
+  ): EnactBasketInstructionData {
     return new EnactBasketInstructionData({
       basket_name,
       rent_given: new BN(rent_given),
-    })
+    });
   }
 }
 
@@ -290,16 +318,18 @@ export class NewSupportedWCallInputInstructionData extends Assignable {
     return deserialize(SCHEMA, NewSupportedWCallInputInstructionData, bytes);
   }
 
-  static createNew(input_name: string, input_address: PublicKey): NewSupportedWCallInputInstructionData {
+  static createNew(
+    input_name: string,
+    input_address: PublicKey
+  ): NewSupportedWCallInputInstructionData {
     return new NewSupportedWCallInputInstructionData({
       input_name,
-      input_address: serializePubkey(input_address)
+      input_address: serializePubkey(input_address),
     });
   }
 }
 
 export class InitMallocInstructionData extends Assignable {
-
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
   }
@@ -343,10 +373,12 @@ export class WCallChainedBorsh extends Assignable {
       callback_basket: this.callback_basket,
       input: this.input,
       output: this.output,
-      associated_accounts: this.associated_accounts.map(key => new PublicKey(key)),
+      associated_accounts: this.associated_accounts.map(
+        (key) => new PublicKey(key)
+      ),
       associated_account_is_writable: this.associated_account_is_writable,
-      associated_account_is_signer: this.associated_account_is_signer
-    }
+      associated_account_is_signer: this.associated_account_is_signer,
+    };
   }
 }
 
@@ -374,10 +406,12 @@ export class WCallSimpleBorsh extends Assignable {
     return {
       wcall: new PublicKey(this.wcall),
       input: this.input,
-      associated_accounts: this.associated_accounts.map(key => new PublicKey(key)),
+      associated_accounts: this.associated_accounts.map(
+        (key) => new PublicKey(key)
+      ),
       associated_account_is_writable: this.associated_account_is_writable,
-      associated_account_is_signer: this.associated_account_is_signer
-    }
+      associated_account_is_signer: this.associated_account_is_signer,
+    };
   }
 }
 
@@ -402,10 +436,10 @@ export class BasketBorsh extends Assignable {
   into(): Basket {
     return {
       calls: this.calls,
-      splits: this.splits.map(bn => bn.toNumber()),
+      splits: this.splits.map((bn) => bn.toNumber()),
       creator: new PublicKey(this.creator),
-      input: this.input
-    }
+      input: this.input,
+    };
   }
 }
 
@@ -424,10 +458,7 @@ export class BasketEntryBorsh extends Assignable {
   }
 
   into() {
-    return [
-      this.name,
-      this.basket.into()
-    ]
+    return [this.name, this.basket.into()];
   }
 }
 
@@ -446,10 +477,7 @@ export class WCallInputBorsh extends Assignable {
   }
 
   into() {
-    return [
-      this.name,
-      new PublicKey(this.input)
-    ]
+    return [this.name, new PublicKey(this.input)];
   }
 }
 
@@ -467,16 +495,18 @@ export class WCallBorsh extends Enum {
     return deserialize(SCHEMA, WCallBorsh, bytes);
   }
 
-  into(): { Chained: WCallChained<PublicKey> } | { Simple: WCallSimple<PublicKey> } {
+  into():
+    | { Chained: WCallChained<PublicKey> }
+    | { Simple: WCallSimple<PublicKey> } {
     if (this.enum === "Chained") {
       return {
-        Chained: this.Chained.into()
-      }
+        Chained: this.Chained.into(),
+      };
     }
 
     return {
-      Simple: this.Simple.into()
-    }
+      Simple: this.Simple.into(),
+    };
   }
 }
 
@@ -495,12 +525,8 @@ export class WCallEntryBorsh extends Assignable {
   }
 
   into() {
-    return [
-      this.name,
-      this.call.into()
-    ]
+    return [this.name, this.call.into()];
   }
-
 }
 
 export class MallocStateBorsh extends Assignable {
@@ -509,7 +535,9 @@ export class MallocStateBorsh extends Assignable {
   //@ts-ignore
   baskets: BasketEntryBorsh[];
   //@ts-ignore
-  supported_wrapped_call_inputs: WCallInputBorsh[]
+  supported_wrapped_call_inputs: WCallInputBorsh[];
+  //@ts-ignore
+  nonce: number;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -523,27 +551,31 @@ export class MallocStateBorsh extends Assignable {
     const state = {
       wrapped_calls: {},
       baskets: {},
-      supported_wrapped_call_inputs: {}
+      supported_wrapped_call_inputs: {},
+      nonce: 0
     };
 
-    this.wrapped_calls.forEach(entry => {
-      state.wrapped_calls[entry.name] = entry.call.into()
-    })
+    this.wrapped_calls.forEach((entry) => {
+      state.wrapped_calls[entry.name] = entry.call.into();
+    });
 
-    this.baskets.forEach(entry => {
-      state.baskets[entry.name] = entry.basket.into()
-    })
+    this.baskets.forEach((entry) => {
+      state.baskets[entry.name] = entry.basket.into();
+    });
 
-    this.supported_wrapped_call_inputs.forEach(entry => {
-      state.supported_wrapped_call_inputs[entry.name] = new PublicKey(entry.input)
-    })
+    this.supported_wrapped_call_inputs.forEach((entry) => {
+      state.supported_wrapped_call_inputs[entry.name] = new PublicKey(
+        entry.input
+      );
+    });
+    state.nonce = this.nonce
 
-    return state
+    return state;
   }
-
 }
 
 export const SCHEMA = new Map<Function, any>([
+<<<<<<< HEAD
   [InstructionData, {
     kind: 'enum', field: 'enum', values: [
       ['RegisterCall', RegisterCallInstructionData],
@@ -635,5 +667,152 @@ export const SCHEMA = new Map<Function, any>([
       ['input', 'string'],
     ]
   }],
+=======
+  [
+    InstructionData,
+    {
+      kind: "enum",
+      field: "enum",
+      values: [
+        ["RegisterCall", RegisterCallInstructionData],
+        ["CreateBasket", CreateBasketInstructionData],
+        ["EnactBasket", EnactBasketInstructionData],
+        ["NewSupportedWCallInput", NewSupportedWCallInputInstructionData],
+        ["InitMalloc", InitMallocInstructionData],
+      ],
+    },
+  ],
+  [
+    RegisterCallInstructionData,
+    {
+      kind: "struct",
+      fields: [
+        ["call_name", "string"],
+        ["wcall_enum", WCallBorsh],
+      ],
+    },
+  ],
+  [
+    CreateBasketInstructionData,
+    {
+      kind: "struct",
+      fields: [
+        ["name", "string"],
+        ["calls", ["string"]],
+        ["splits", ["u64"]],
+        ["input", ["u8"]],
+      ],
+    },
+  ],
+  [
+    EnactBasketInstructionData,
+    {
+      kind: "struct",
+      fields: [
+        ["basket_name", "string"],
+        ["rent_given", "u64"],
+      ],
+    },
+  ],
+  [
+    NewSupportedWCallInputInstructionData,
+    {
+      kind: "struct",
+      fields: [
+        ["input_name", "string"],
+        ["input_address", [32]],
+      ],
+    },
+  ],
+  [
+    InitMallocInstructionData,
+    {
+      kind: "struct",
+      fields: [],
+    },
+  ],
+  [
+    WCallInputBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["name", "string"],
+        ["input", ["u8"]],
+      ],
+    },
+  ],
+  [
+    BasketEntryBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["name", "string"],
+        ["basket", [BasketBorsh]],
+      ],
+    },
+  ],
+  [
+    MallocStateBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["wrapped_calls", [WCallEntryBorsh]],
+        ["baskets", [BasketEntryBorsh]],
+        ["supported_wrapped_call_inputs", [WCallInputBorsh]],
+        ["nonce", "u8"]
+      ],
+    },
+  ],
+  [
+    WCallBorsh,
+    {
+      kind: "enum",
+      field: "enum",
+      values: [
+        ["Simple", WCallSimpleBorsh],
+        ["Chained", WCallChainedBorsh],
+      ],
+    },
+  ],
+  [
+    WCallChainedBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["wcall", ["u8"]],
+        ["callback_basket", "string"],
+        ["input", "string"],
+        ["output", "string"],
+        ["associated_accounts", [["u8"]]],
+        ["associated_account_is_writable", "u8"],
+        ["associated_account_is_signer", "u8"],
+      ],
+    },
+  ],
+  [
+    WCallSimpleBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["wcall", ["u8"]],
+        ["input", "string"],
+        ["associated_accounts", [["u8"]]],
+        ["associated_account_is_writable", "u8"],
+        ["associated_account_is_signer", "u8"],
+      ],
+    },
+  ],
+  [
+    BasketBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["calls", ["string"]],
+        ["splits", ["u64"]],
+        ["creator", ["u8"]],
+        ["input", "string"],
+      ],
+    },
+  ],
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
 ]);
-
