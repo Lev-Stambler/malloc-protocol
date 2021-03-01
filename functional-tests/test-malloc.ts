@@ -198,7 +198,7 @@ describe("Run a standard set of Malloc tests", async function () {
     }
   });
 
-  xit("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
+  it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
     let instsDummy: TransactionInstruction[] = [];
 
     const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
@@ -354,7 +354,7 @@ describe("Run a standard set of Malloc tests", async function () {
     console.log("CHAINED TX for first part", txRetChained);
   });
 
-  it("Try token swap out", async () => {
+  xit("Try token swap out", async () => {
     let insts: TransactionInstruction[] = [];
     const signers: Account[] = [];
     const TOKEN_A_MINT = new PublicKey(

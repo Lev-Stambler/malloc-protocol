@@ -543,8 +543,17 @@ export class MallocStateBorsh extends Assignable {
     return serialize(SCHEMA, this);
   }
 
-  static decode(bytes: Buffer): MallocStateBorsh {
-    return deserialize(SCHEMA, MallocStateBorsh, bytes);
+  static decode(bytes: Uint8Array): MallocStateBorsh {
+    let sizeBuff = bytes.slice(0, 4);
+    let size = Buffer.from(sizeBuff).readUIntBE(0, 4);
+    let start = 4;
+    let buf = Buffer.from(bytes.slice(start, start + size))
+
+    return deserialize(
+      SCHEMA,
+      MallocStateBorsh,
+      Buffer.from(bytes.slice(start, start + size))
+    );
   }
 
   into(): MallocState {
@@ -552,7 +561,7 @@ export class MallocStateBorsh extends Assignable {
       wrapped_calls: {},
       baskets: {},
       supported_wrapped_call_inputs: {},
-      nonce: 0
+      nonce: 0,
     };
 
     this.wrapped_calls.forEach((entry) => {
@@ -568,7 +577,7 @@ export class MallocStateBorsh extends Assignable {
         entry.input
       );
     });
-    state.nonce = this.nonce
+    state.nonce = this.nonce;
 
     return state;
   }
@@ -627,7 +636,7 @@ export const SCHEMA = new Map<Function, any>([
       kind: "struct",
       fields: [
         ["input_name", "string"],
-        ["input_address", [32]],
+        ["input_address", ["u8"]],
       ],
     },
   ],
@@ -666,7 +675,7 @@ export const SCHEMA = new Map<Function, any>([
         ["wrapped_calls", [WCallEntryBorsh]],
         ["baskets", [BasketEntryBorsh]],
         ["supported_wrapped_call_inputs", [WCallInputBorsh]],
-        ["nonce", "u8"]
+        ["nonce", "u8"],
       ],
     },
   ],

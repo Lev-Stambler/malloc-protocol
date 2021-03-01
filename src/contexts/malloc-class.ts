@@ -120,9 +120,9 @@ export class Malloc {
   }
 
   // TODO: if you are a PublicKey type convert from the number[] PublicKey
-  private parseAccountState(data: Buffer): MallocState {
-    const buf = trimBuffer(data);
-    const state = MallocStateBorsh.decode(buf).into();
+  private parseAccountState(data: Uint8Array): MallocState {
+    // const buf = trimBuffer(data);
+    const state = MallocStateBorsh.decode(data).into();
     this.convertObjToHavePubKey(state);
     console.log(state);
     return state;
