@@ -1,0 +1,26 @@
+{
+  "swapStateAccount": {
+    "_bn": "2734bfe4f790b56537db0e3bd9bbdc8e10a0b0a99236d16a0e3c2f650379f176"
+  },
+  "swapAuthority": {
+    "_bn": "1bbb702a4aa349dae3f5d084282545d9498ca6647e4c3ad94e4151c4c994f106"
+  },
+  "tokenAccountA": {
+    "_bn": "5f66efd11c54324e53f05094da6f38eb8a964a78839b85ab7db569046abb1987"
+  },
+  "tokenAccountB": {
+    "_bn": "e025f4e5717846d13f9509dd8de6d9c439dedc9a74827352d26e6d9ac4a9fdc5"
+  },
+  "poolMint": {
+    "_bn": "f7acb344229e568fea084b51839f009f6d3e2a904a15b800309203a5191d4b82"
+  },
+  "poolFeeAccount": {
+    "_bn": "51e9b086e6db86961896d4ba1823eade6eec3d4cd6dd9e3104241e24aea7ec78"
+  },
+  "poolTokenAccount": {
+    "_bn": "ed5e7adb7ea6be4fcdb6a679e076a9de1060d5a5c44cda4c7362f6c3c38fe78e"
+  },
+  "tokenProgramId": {
+    "_bn": "115eb34a50a32cd37c1d62ca29516c8510547330b936dd5901be3e3a19ee1ebc"
+  }
+}

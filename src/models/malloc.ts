@@ -11,7 +11,7 @@ import { TOKEN_PROGRAM_ID } from "../utils/ids";
 
 export const SPLIT_SUM = 1000;
 
-type PubKeyRep = number[];
+export type PubKeyRep = number[];
 
 class Assignable {
     constructor(properties) {

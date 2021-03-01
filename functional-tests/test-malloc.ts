@@ -15,7 +15,7 @@ const progKey = require("../src/config/program_id.json").programId;
 const progId = new PublicKey(progKey);
 import "mocha";
 import { serializePubkey, trimBuffer } from "../src/utils/utils";
-import { MallocState } from "../src/models/malloc";
+import { MallocState, PubKeyRep, WCallSimple } from "../src/models/malloc";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
 import { WalletProvider } from "../src/contexts/wallet";
@@ -105,16 +105,6 @@ async function sendGeneralInstruction(
   try {
     const tx = new Transaction();
     instructions.forEach((inst) => {
-      // console.log(
-      //   "Adding instruction with data",
-      //   new TextDecoder("utf-8").decode(inst.data),
-      //   "And with account pubkeys",
-      //   inst.keys.map((key) => {
-      //     return {
-      //       Pubkey: key.pubkey.toBase58(),
-      //     };
-      //   })
-      // );
       tx.add(inst);
     });
     const txRet = await sendAndConfirmTransaction(
@@ -172,11 +162,28 @@ async function fundWithWSol(amount: number): Promise<PublicKey> {
 
 describe("Run a standard set of Malloc tests", async function () {
   this.timeout(200000);
+  let malloc_class: Malloc;
   before(async function () {
+    malloc_class = new Malloc(
+      data_account.publicKey,
+      progId,
+      connection,
+      undefined,
+      {}
+    );
+
     this.timeout(200000);
     connection = await initAccounts();
     await initMallocData();
+
+    await doGeneralInstrSingleton({
+      NewSupportedWCallInput: {
+        input_name: "WSol",
+        input_address: [...WRAPPED_SOL_MINT.toBuffer()],
+      },
+    });
   });
+
   it("fails if already registered", async () => {
     try {
       await initMallocData();
@@ -185,21 +192,9 @@ describe("Run a standard set of Malloc tests", async function () {
       assert(true);
     }
   });
+
   it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
     let instsDummy = [];
-    const malloc_class = new Malloc(
-      data_account.publicKey,
-      progId,
-      connection,
-      undefined,
-      {}
-    );
-    await doGeneralInstrSingleton({
-      NewSupportedWCallInput: {
-        input_name: "WSol",
-        input_address: [...WRAPPED_SOL_MINT.toBuffer()],
-      },
-    });
 
     const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
     await malloc_class.refresh();
@@ -349,5 +344,63 @@ describe("Run a standard set of Malloc tests", async function () {
       accountsChained
     );
     console.log("CHAINED TX for first part", txRetChained);
+  });
+
+  it("Try token swap out", async () => {
+    let insts: TransactionInstruction[] = [];
+    const WRAPPED_INTO_MINT = new PublicKey("AASAS");
+    const SWAP_WCALL = new PublicKey("ASAS");
+    const signers: Account[] = [];
+    const swapIntoAccount = createTokenAccount(
+      insts,
+      account.publicKey,
+      await malloc_class.getEphemeralAccountRent(),
+      WRAPPED_INTO_MINT,
+      account.publicKey,
+      signers
+    );
+    insts.push(
+      malloc_class.registerCall({
+        call_name: "SWAP SOL for MINT",
+        wcall: {
+          Simple: {
+            wcall: serializePubkey(SWAP_WCALL),
+            input: "WSol",
+            associated_accounts: [
+              serializePubkey(TOKEN_SWAP_PROG),
+              serializePubkey(SWAP_AUTH),
+              serializePubkey(WRAPPED_SOL_MINT),
+              serializePubkey(WRAPPED_INTO_MINT),
+              serializePubkey(swapIntoAccount),
+              serializePubkey(POOL_TOKEN_MINT),
+              serializePubkey(FEE_ACCOUNT)
+            ],
+          } as WCallSimple<PubKeyRep>,
+        },
+      })
+    );
+    insts.push(
+      malloc_class.createBasket({
+        name: "Swap basic basket",
+        calls: ["SWAP SOL for MINT"],
+        splits: [1000],
+        input: "WSol",
+      })
+    );
+    await sendGeneralInstruction(insts, []);
+    insts = [];
+    const amountInFundedWSol = 1000 * 1000;
+    const fundedWSolAccount = await fundWithWSol(amountInFundedWSol + 1000);
+
+    const basketNode = malloc_class.getCallGraph("Just a simp");
+    const accounts = malloc_class.invokeCallGraph(
+      insts,
+      basketNode,
+      fundedWSolAccount,
+      await malloc_class.getEphemeralAccountRent(),
+      amountInFundedWSol
+    );
+
+    const txRet = await sendGeneralInstruction(insts, accounts);
   });
 });

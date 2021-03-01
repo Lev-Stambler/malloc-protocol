@@ -5,6 +5,7 @@ import { TokenAccount } from "./../models";
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { WAD, ZERO } from "../constants";
+import { PubKeyRep } from "../models/malloc";
 
 export interface KnownToken {
   tokenSymbol: string;
@@ -21,7 +22,7 @@ export const formatPriceNumber = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 8,
 });
 
-export function serializePubkey(key: PublicKey) {
+export function serializePubkey(key: PublicKey): PubKeyRep {
   return [...key.toBuffer()];
 }
 
