@@ -33,6 +33,8 @@ import {
   EnactBasketInstructionData,
   NewSupportedWCallInputInstructionData,
   RegisterCallInstructionData,
+  MallocStateBorsh,
+  InstructionData
 } from "../models/malloc";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
 import { serializePubkey, trimBuffer } from "../utils/utils";
@@ -86,8 +88,7 @@ export class Malloc {
   // TODO: if you are a PublicKey type convert from the number[] PublicKey
   private parseAccountState(data: Buffer): MallocState {
     const buf = trimBuffer(data);
-    const bufString = buf.toString();
-    const state = JSON.parse(bufString);
+    const state = MallocStateBorsh.decode(buf).into();
     this.convertObjToHavePubKey(state);
     console.log(state);
     return state;
@@ -135,7 +136,9 @@ export class Malloc {
                 callback_basket: callNode.callback_basket.name,
                 output: callNode.output,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts
+                associated_accounts: callNode.associateAccounts,
+                associated_account_is_signer: callNode.associated_account_is_signer,
+                associated_account_is_writable: callNode.associated_account_is_writable
               },
             },
           })
@@ -149,7 +152,9 @@ export class Malloc {
               Simple: {
                 wcall: callNode.wcall,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts
+                associated_accounts: callNode.associateAccounts,
+                associated_account_is_signer: callNode.associated_account_is_signer,
+                associated_account_is_writable: callNode.associated_account_is_writable
               },
             },
           })
@@ -489,7 +494,9 @@ export class Malloc {
       throw new Error("wallet not connected");
     }
     const { name, calls, splits, input } = args
-    const instructionData = CreateBasketInstructionData.createNew(name, calls, splits, input)
+    const instructionData = InstructionData.createNew(
+      CreateBasketInstructionData.createNew(name, calls, splits, input)
+    );
     return new TransactionInstruction({
       keys: [
         {
@@ -533,8 +540,9 @@ export class Malloc {
     }
 
     const { basket_name, rent_given } = args;
-    const instructionData = EnactBasketInstructionData.createNew(basket_name, rent_given)
-
+    const instructionData = InstructionData.createNew(
+      EnactBasketInstructionData.createNew(basket_name, rent_given)
+    );
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
@@ -557,9 +565,10 @@ export class Malloc {
       wcall = args.wcall as { Chained: WCallChained<PublicKey> };
       wcall.Chained.wcall = wcall.Chained.wcall;
     }
-
-    const instructionData = RegisterCallInstructionData.createNew(args.call_name, wcall)
-
+  
+    const instructionData = InstructionData.createNew(
+      RegisterCallInstructionData.createNew(args.call_name, wcall)
+    );
     return new TransactionInstruction({
       keys: [
         {
@@ -574,7 +583,7 @@ export class Malloc {
         },
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
+      data: Buffer.from(instructionData.encode()),
     });
   }
 
@@ -588,7 +597,9 @@ export class Malloc {
     }
 
     const { input_name, input_address } = args;
-    const instructionData = NewSupportedWCallInputInstructionData.createNew(input_name, input_address)
+    const instructionData = InstructionData.createNew(
+      NewSupportedWCallInputInstructionData.createNew(input_name, input_address)
+    );
     instructions.push(
       new TransactionInstruction({
         keys: [

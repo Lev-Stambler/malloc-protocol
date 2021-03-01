@@ -17,10 +17,10 @@ use std::str::from_utf8;
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
 
-fn process_register_call(
+fn process_register_call<'a>(
     sender: &Pubkey,
     prog_state: &mut ProgState,
-    program_data: *mut u8,
+    program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
 ) -> ProgramResult {
@@ -51,14 +51,14 @@ fn process_register_call(
         name: name.clone(),
         wcall: wcall,
     });
-    prog_state.write_new_prog_state(program_data)?;
+    prog_state.write_new_prog_state(program_info)?;
     msg!("MALLOC LOG: registered call '{}'", name);
     Ok(())
 }
 
-fn process_new_supported_wrapped_call_input(
+fn process_new_supported_wrapped_call_input<'a>(
     prog_state: &mut ProgState,
-    program_data: *mut u8,
+    program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
 ) -> ProgramResult {
@@ -77,7 +77,7 @@ fn process_new_supported_wrapped_call_input(
         msg!("MALLOC LOG: This input has already been registered");
         return Err(ProgramError::InvalidInstructionData);
     }
-    prog_state.write_new_prog_state(program_data)?;
+    prog_state.write_new_prog_state(program_info)?;
     msg!("MALLOC LOG: registered new call input '{}'", input_name);
     Ok(())
 }
@@ -233,19 +233,20 @@ fn process_enact_basket<'a>(
     Ok(start_idx)
 }
 
-fn process_init_malloc(program_data: *mut u8, program_inp: &[u8]) -> ProgramResult {
-    if let Ok(_) = ProgState::unpack(program_inp) {
+fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
+    let current_contents = &program_info.data.borrow();
+    if let Ok(_) = ProgState::unpack(current_contents) {
         return Err(ProgramError::InvalidInstructionData);
     }
     let new_state = ProgState::new();
-    let _ = new_state.write_new_prog_state(program_data);
+    let _ = new_state.write_new_prog_state(program_info);
     msg!("MALLOC LOG: init malloc done!");
     Ok(())
 }
 
-fn process_create_basket(
+fn process_create_basket<'a>(
     prog_state: &mut ProgState,
-    program_data: *mut u8,
+    program_info: &'a AccountInfo<'a>,
     name: String,
     calls: Vec<String>,
     splits: Vec<u64>,
@@ -257,7 +258,7 @@ fn process_create_basket(
         name: name.clone(),
         basket: new_basket,
     });
-    let _ = prog_state.write_new_prog_state(program_data)?;
+    let _ = prog_state.write_new_prog_state(program_info)?;
     msg!("MALLOC LOG: created new basket '{}'", name);
     Ok(())
 }
@@ -293,8 +294,7 @@ pub fn process_instruction<'a>(
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
         //msg!("MALLOC LOG: InitMalloc");
-        let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
-        return process_init_malloc(prog_data_ptr, &program_info.data.borrow().as_ref());
+        return process_init_malloc(program_info);
     }
 
     let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
@@ -308,13 +308,10 @@ pub fn process_instruction<'a>(
             call_name: name,
             wcall_enum: wcall,
         } => {
-            // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
-            // not sure if its right
-            let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
             process_register_call(
                 account_info.owner,
                 &mut prog_state,
-                prog_data_ptr,
+                program_info,
                 name,
                 wcall,
             )
@@ -350,17 +347,15 @@ pub fn process_instruction<'a>(
             splits,
             input,
         } => {
-            let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
-            process_create_basket(&mut prog_state, prog_data_ptr, name, calls, splits, input)
+            process_create_basket(&mut prog_state, program_info, name, calls, splits, input)
         }
         ProgInstruction::NewSupportedWCallInput {
             input_name,
             input_address,
         } => {
-            let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
             process_new_supported_wrapped_call_input(
                 &mut prog_state,
-                prog_data_ptr,
+                program_info,
                 input_name,
                 input_address,
             )

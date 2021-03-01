@@ -51,6 +51,8 @@ export interface WCallSimpleNode {
   input: string;
   wcall: PublicKey;
   associateAccounts: PublicKey[];
+  associated_account_is_writable: number[];
+  associated_account_is_signer: number[];
 }
 
 export interface WCallChainedNode {
@@ -61,6 +63,8 @@ export interface WCallChainedNode {
   // Very important to keep the snake case to match the prog state
   callback_basket: BasketNode;
   associateAccounts: PublicKey[];
+  associated_account_is_writable: number[];
+  associated_account_is_signer: number[];
 }
 
 export interface Basket {
@@ -162,7 +166,7 @@ export enum ProgramInstruction {
   NewSupportedWCallInput = "NewSupportedWCallInput",
 }
 
-class InstructionData extends Enum {
+export class InstructionData extends Enum {
   //@ts-ignore
   RegisterCall: RegisterCallInstructionData;
   //@ts-ignore
@@ -180,6 +184,19 @@ class InstructionData extends Enum {
 
   static decode(bytes: Buffer): InstructionData {
     return deserialize(SCHEMA, InstructionData, bytes);
+  }
+
+  static createNew(value: RegisterCallInstructionData | CreateBasketInstructionData | EnactBasketInstructionData | NewSupportedWCallInputInstructionData | InitMallocInstructionData): InstructionData {
+    if (value instanceof RegisterCallInstructionData) {
+      return new InstructionData({"RegisterCall": value})
+    } else if (value instanceof CreateBasketInstructionData) {
+      return new InstructionData({"CreateBasket": value})
+    } else if (value instanceof EnactBasketInstructionData) {
+      return new InstructionData({"EnactBasket": value})
+    } else if (value instanceof NewSupportedWCallInputInstructionData) {
+      return new InstructionData({"NewSupportedWCallInput": value});
+    }
+    return new InstructionData({"InitMalloc": value})
   }
 }
 
@@ -292,7 +309,7 @@ export class InitMallocInstructionData extends Assignable {
   }
 }
 
-class WCallChainedBorsh extends Assignable {
+export class WCallChainedBorsh extends Assignable {
   //@ts-ignore
   wcall: number[];
   //@ts-ignore
@@ -329,7 +346,7 @@ class WCallChainedBorsh extends Assignable {
   }
 }
 
-class WCallSimpleBorsh extends Assignable {
+export class WCallSimpleBorsh extends Assignable {
   //@ts-ignore
   wcall: number[];
   //@ts-ignore
@@ -360,7 +377,7 @@ class WCallSimpleBorsh extends Assignable {
   }
 }
 
-class BasketBorsh extends Assignable {
+export class BasketBorsh extends Assignable {
   //@ts-ignore
   calls: string[];
   //@ts-ignore
@@ -388,7 +405,7 @@ class BasketBorsh extends Assignable {
   }
 }
 
-class BasketEntryBorsh extends Assignable {
+export class BasketEntryBorsh extends Assignable {
   //@ts-ignore
   name: string;
   //@ts-ignore
@@ -410,7 +427,7 @@ class BasketEntryBorsh extends Assignable {
   }
 }
 
-class WCallInputBorsh extends Assignable {
+export class WCallInputBorsh extends Assignable {
   //@ts-ignore
   name: string;
   //@ts-ignore
@@ -432,7 +449,7 @@ class WCallInputBorsh extends Assignable {
   }
 }
 
-class WCallBorsh extends Enum {
+export class WCallBorsh extends Enum {
   //@ts-ignore
   Chained: WCallChainedBorsh;
   //@ts-ignore
@@ -459,7 +476,7 @@ class WCallBorsh extends Enum {
   }
 }
 
-class WCallEntryBorsh extends Assignable {
+export class WCallEntryBorsh extends Assignable {
   //@ts-ignore
   name: string;
   //@ts-ignore
@@ -482,7 +499,7 @@ class WCallEntryBorsh extends Assignable {
 
 }
 
-class MallocStateBorsh extends Assignable {
+export class MallocStateBorsh extends Assignable {
   //@ts-ignore
   wrapped_calls: WCallEntryBorsh[];
   //@ts-ignore

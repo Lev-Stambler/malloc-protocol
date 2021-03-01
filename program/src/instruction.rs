@@ -10,6 +10,7 @@ use solana_program::{
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
+    account_info::AccountInfo,
 };
 use std::{convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
@@ -141,18 +142,15 @@ impl ProgState {
     }
 
     // TODO: crazy enifficient
-    pub fn write_new_prog_state(&self, data_ptr: *mut u8) -> Result<(), ProgramError> {
-        unsafe {
-            let encoded = self.pack();
-            let first_0 = encoded.iter().position(|&r| r == 0);
-            let encoded_trimmed = if let Some(first_0_ind) = first_0 {
-                &encoded[0..first_0_ind]
-            } else {
-                &encoded
-            };
-            let data = from_raw_parts_mut(data_ptr, encoded_trimmed.len());
-            data.copy_from_slice(encoded_trimmed);
-        };
+    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        let mut encoded = self.pack();
+        // let first_0 = encoded.iter().position(|&r| r == 0);
+        // let encoded_trimmed = if let Some(first_0_ind) = first_0 {
+        //     &encoded[0..first_0_ind]
+        // } else {
+        //     &encoded
+        // };
+        account_info.try_borrow_mut_data()?.copy_from_slice(encoded.as_slice());
         Ok(())
     }
 
