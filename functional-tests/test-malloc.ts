@@ -229,26 +229,25 @@ describe("Run a standard set of Malloc tests", async function () {
       iGetMoneyStartingInfo.amount.toString()
     );
 
-    await doGeneralInstrSingleton({
-      RegisterCall: {
+    await doGeneralInstrSingleton(
+      malloc_class.registerCall({
         call_name: "takes money from one account to another",
         // dummy public key
-        wcall_enum: {
+        wcall: {
           Simple: {
             wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
             input: "WSol",
             associated_accounts: [serializePubkey(I_GET_THE_MONEY)],
           },
         },
-      },
-    });
+      })
+    );
     await malloc_class.refresh();
-    // TODO: somehow how registering this WCall causes issues...
-    await doGeneralInstrSingleton({
-      RegisterCall: {
+    await doGeneralInstrSingleton(
+      malloc_class.registerCall({
         call_name: "takes money from one account to another chained",
         // dummy public key
-        wcall_enum: {
+        wcall: {
           Chained: {
             wcall: serializePubkey(SIMPLE_PASS_THROUGH_WCALL),
             input: "WSol",
@@ -257,8 +256,8 @@ describe("Run a standard set of Malloc tests", async function () {
             associated_accounts: [],
           },
         },
-      },
-    });
+      })
+    );
     await malloc_class.refresh();
     await doGeneralInstrSingleton({
       CreateBasket: {
@@ -372,14 +371,20 @@ describe("Run a standard set of Malloc tests", async function () {
       signers
     );
 
-    await sendGeneralInstruction(insts, signers)
-    console.log("Create tok swap accounts")
+    await sendGeneralInstruction(insts, signers);
+    console.log("Create tok swap accounts");
 
+    const wcallName = "SWAP TOK_A for TOK_B";
     // TODO: approve new input for the swap
     await sendGeneralInstruction([
-      registerTokSwapWCall(malloc_class, destAccount),
+      registerTokSwapWCall(malloc_class, wcallName, destAccount),
     ]);
-    console.log("Registered WCall")
+    console.log("Registered WCall");
+    await malloc_class.refresh();
+    assert(
+      (malloc_class.state?.wrapped_calls[wcallName] as any).Simple
+        .associated_accounts.length === 7
+    );
 
     await sendGeneralInstruction([
       malloc_class.createBasket({
@@ -389,7 +394,7 @@ describe("Run a standard set of Malloc tests", async function () {
         input: "WSol",
       }),
     ]);
-    console.log("Basket created")
+    console.log("Basket created");
     insts = [];
     const amountInFunded = 0;
 
