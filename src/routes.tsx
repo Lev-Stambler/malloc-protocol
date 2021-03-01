@@ -8,7 +8,7 @@ import { MallocProvider } from "./contexts/malloc";
 import { DiagramProvider } from "./contexts/diagram";
 import { AppLayout } from "./components/Layout";
 
-import { FaucetView, HomeView, RegisterWCallView, CallGraphView } from "./views";
+import { FaucetView, HomeView, RegisterWCallView, CallGraphView, InfoView } from "./views";
 
 export function Routes() {
   return (
@@ -26,6 +26,7 @@ export function Routes() {
                         <Route exact path="/faucet" children={<FaucetView />} />
                         <Route exact path="/graph/:topLevelBasketId" children={<CallGraphView />} />
                         <Route exact path="/register-wcall" children={<RegisterWCallView />} />
+                        <Route exact path="/ultralitepaper" children={<InfoView />} />
                       </Switch>
                     </AppLayout>
                   </DiagramProvider>

@@ -218,6 +218,7 @@ export class RegisterCallInstructionData extends Assignable {
   }
 
   static createNew(call_name: string, wcall: WCallSimple<PublicKey> | WCallChained<PublicKey>): RegisterCallInstructionData {
+    
     const call = isWCallChained(wcall) ? {
       Chained: new WCallChainedBorsh({ ...wcall })
     } : {
