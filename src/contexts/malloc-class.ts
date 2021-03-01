@@ -29,6 +29,10 @@ import {
   SPLIT_SUM,
   MallocState,
   NewSupportedWCallInput,
+  CreateBasketInstructionData,
+  EnactBasketInstructionData,
+  NewSupportedWCallInputInstructionData,
+  RegisterCallInstructionData,
 } from "../models/malloc";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
 import { serializePubkey, trimBuffer } from "../utils/utils";
@@ -62,73 +66,6 @@ export class Malloc {
 
   public setUserPubKeyAlt(pubkey: PublicKey) {
     this.userPubKeyAlt = pubkey;
-  }
-
-  public registerCall(args: RegisterCallArgs) {
-    if (!this.wallet) {
-      alert("please connect your wallet first");
-      throw new Error("wallet not connected");
-    }
-
-    let wcall: any;
-
-    if (args.wcall.hasOwnProperty("Simple")) {
-      wcall = args.wcall as { Simple: WCallSimple<number[]> };
-      wcall.Simple.wcall = wcall.Simple.wcall;
-    } else {
-      wcall = args.wcall as { Chained: WCallChained<number[]> };
-      wcall.Chained.wcall = wcall.Chained.wcall;
-    }
-
-    const sending_args = {
-      call_name: args.call_name,
-      wcall_enum: wcall,
-    };
-
-    return new TransactionInstruction({
-      keys: [
-        {
-          isWritable: true,
-          pubkey: this.progStateAccount,
-          isSigner: false,
-        },
-        {
-          isWritable: true,
-          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-          isSigner: true,
-        },
-      ],
-      programId: this.progId,
-      data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
-    });
-  }
-
-  public registerNewSupportedWCall(
-    instructions: TransactionInstruction[],
-    args: NewSupportedWCallInput
-  ) {
-    if (!this.wallet) {
-      alert("please connect your wallet first");
-      return;
-    }
-    instructions.push(
-      new TransactionInstruction({
-        keys: [
-          {
-            isWritable: true,
-            pubkey: this.progStateAccount,
-            isSigner: false,
-          },
-          {
-            isWritable: false,
-            pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-            isSigner: true,
-          },
-        ],
-        programId: this.progId,
-        data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
-      })
-    );
   }
 
   private convertObjToHavePubKey(state: any) {
@@ -194,13 +131,11 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Chained: {
-                wcall: serializePubkey(callNode.wcall),
+                wcall: callNode.wcall,
                 callback_basket: callNode.callback_basket.name,
                 output: callNode.output,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts.map((k) =>
-                  serializePubkey(k)
-                ),
+                associated_accounts: callNode.associateAccounts
               },
             },
           })
@@ -212,11 +147,9 @@ export class Malloc {
             call_name: callNode.name,
             wcall: {
               Simple: {
-                wcall: serializePubkey(callNode.wcall),
+                wcall: callNode.wcall,
                 input: callNode.input,
-                associated_accounts: callNode.associateAccounts.map((k) =>
-                  serializePubkey(k)
-                ),
+                associated_accounts: callNode.associateAccounts
               },
             },
           })
@@ -555,6 +488,8 @@ export class Malloc {
       alert("please connect your wallet first");
       throw new Error("wallet not connected");
     }
+    const { name, calls, splits, input } = args
+    const instructionData = CreateBasketInstructionData.createNew(name, calls, splits, input)
     return new TransactionInstruction({
       keys: [
         {
@@ -570,7 +505,7 @@ export class Malloc {
         },
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ createBasket: args })),
+      data: Buffer.from(instructionData.encode()),
     });
   }
 
@@ -597,11 +532,81 @@ export class Malloc {
       isSigner: false
     }
 
+    const { basket_name, rent_given } = args;
+    const instructionData = EnactBasketInstructionData.createNew(basket_name, rent_given)
+
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ EnactBasket: args })),
+      data: Buffer.from(instructionData.encode()),
     });
+  }
+
+  public registerCall(args: RegisterCallArgs) {
+    if (!this.wallet) {
+      alert("please connect your wallet first");
+      throw new Error("wallet not connected");
+    }
+
+    let wcall: any;
+
+    if (args.wcall.hasOwnProperty("Simple")) {
+      wcall = args.wcall as { Simple: WCallSimple<PublicKey> };
+      wcall.Simple.wcall = wcall.Simple.wcall;
+    } else {
+      wcall = args.wcall as { Chained: WCallChained<PublicKey> };
+      wcall.Chained.wcall = wcall.Chained.wcall;
+    }
+
+    const instructionData = RegisterCallInstructionData.createNew(args.call_name, wcall)
+
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+        {
+          isWritable: true,
+          pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+          isSigner: true,
+        },
+      ],
+      programId: this.progId,
+      data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
+    });
+  }
+
+  public registerNewSupportedWCall(
+    instructions: TransactionInstruction[],
+    args: NewSupportedWCallInput
+  ) {
+    if (!this.wallet) {
+      alert("please connect your wallet first");
+      return;
+    }
+
+    const { input_name, input_address } = args;
+    const instructionData = NewSupportedWCallInputInstructionData.createNew(input_name, input_address)
+    instructions.push(
+      new TransactionInstruction({
+        keys: [
+          {
+            isWritable: true,
+            pubkey: this.progStateAccount,
+            isSigner: false,
+          },
+          {
+            isWritable: false,
+            pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
+            isSigner: true,
+          },
+        ],
+        programId: this.progId,
+        data: Buffer.from(instructionData.encode()),
+      })
+    );
   }
 
   public async sendMallocTransaction(
