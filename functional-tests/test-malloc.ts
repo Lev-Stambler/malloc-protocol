@@ -130,16 +130,12 @@ async function sendGeneralInstruction(
   }
 }
 
-async function doGeneralInstrSingleton(data: any) {
-  const insts: TransactionInstruction[] = [];
-  addGeneralTransaction(insts, data);
-  await sendGeneralInstruction(insts, []);
+async function doGeneralInstrSingleton(instruction: TransactionInstruction) {
+  await sendGeneralInstruction([instruction]);
 }
 
-async function initMallocData() {
-  const insts: TransactionInstruction[] = [];
-  addGeneralTransaction(insts, { InitMalloc: {} });
-  await sendGeneralInstruction(insts);
+async function initMallocData(malloc_class: Malloc) {
+  await doGeneralInstrSingleton(malloc_class.initState());
 }
 
 async function initAccounts(): Promise<Connection> {
@@ -170,8 +166,6 @@ describe("Run a standard set of Malloc tests", async function () {
   before(async function () {
     this.timeout(200000);
     connection = await initAccounts();
-    await initMallocData();
-
     malloc_class = new Malloc(
       data_account.publicKey,
       progId,
@@ -181,17 +175,19 @@ describe("Run a standard set of Malloc tests", async function () {
     );
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
-    await doGeneralInstrSingleton({
-      NewSupportedWCallInput: {
+    await initMallocData(malloc_class);
+
+    await doGeneralInstrSingleton(
+      malloc_class.registerNewSupportedWCall({
         input_name: "WSol",
         input_address: [...WRAPPED_SOL_MINT.toBuffer()],
-      },
-    });
+      })
+    );
   });
 
   it("fails if already registered", async () => {
     try {
-      await initMallocData();
+      await initMallocData(malloc_class);
       assert(false);
     } catch (e) {
       assert(true);
@@ -259,8 +255,8 @@ describe("Run a standard set of Malloc tests", async function () {
       })
     );
     await malloc_class.refresh();
-    await doGeneralInstrSingleton({
-      CreateBasket: {
+    await doGeneralInstrSingleton(
+      malloc_class.createBasket({
         name: "Just a simp",
         calls: [
           "takes money from one account to another",
@@ -269,10 +265,10 @@ describe("Run a standard set of Malloc tests", async function () {
         ],
         splits: [500, 500],
         input: "WSol",
-      },
-    });
-    await doGeneralInstrSingleton({
-      CreateBasket: {
+      })
+    );
+    await doGeneralInstrSingleton(
+      malloc_class.createBasket({
         name: "Just a chained",
         calls: [
           "takes money from one account to another chained",
@@ -280,8 +276,8 @@ describe("Run a standard set of Malloc tests", async function () {
         ],
         splits: [1000],
         input: "WSol",
-      },
-    });
+      })
+    );
 
     await malloc_class.refresh();
     const rent = await malloc_class.getEphemeralAccountRent();

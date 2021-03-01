@@ -614,6 +614,29 @@ export class Malloc {
     });
   }
 
+  initState() {
+    if (!this.wallet && !this.userPubKeyAlt) {
+      alert("please connect your wallet first");
+      throw new Error("wallet not connected");
+    }
+    return new TransactionInstruction({
+      keys: [
+        {
+          isWritable: true,
+          pubkey: this.progStateAccount,
+          isSigner: false,
+        },
+        {
+          isWritable: false,
+          pubkey: (this.wallet?.publicKey as PublicKey) || this.userPubKeyAlt,
+          isSigner: true,
+        },
+      ],
+      programId: this.progId,
+      data: Buffer.from(JSON.stringify({ InitMalloc: {} })),
+    });
+  }
+
   enactBasket(args: EnactBasketArgs, requiredAccountMetas: AccountMeta[]) {
     // if (!this.wallet) {
     //   alert("please connect your wallet first");

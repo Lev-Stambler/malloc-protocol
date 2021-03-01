@@ -29,14 +29,20 @@ export function registerTokSwapWCall(
         ),
         input: input_name,
         associated_accounts: [
-          // Token swap prog ID
+          // Token swap prog id
           serializePubkey(
             new PublicKey("D1jwGRnE59kcDWuyqVoKmZdBPfc2PfsrTDugB5mio3gr")
+          ),
+          // Token swap prog account
+          serializePubkey(
+            new PublicKey("BKFeciwmNpazwRNhkErWEprsAzAVPSnEKeZTom5Z1hZ6")
           ),
           // TODO: create new auth account for this?
           // Authorizer
           serializePubkey(new PublicKey(delegateAccount)),
+
           // Split account here!
+
           // Source of token A, USDC
           serializePubkey(
             new PublicKey("ALWE2nd7kqwV6WpYcodpEMRbxWKAmm7aLvgiDXp1emJY")
@@ -45,11 +51,9 @@ export function registerTokSwapWCall(
           serializePubkey(
             new PublicKey("9rixCox5ueWNaWzox6hZCr1jat1Z9WjSLf1B4SRcY3ST")
           ),
+          // Output destination
           serializePubkey(destPubkey),
-          // Token Swap Addr
-          serializePubkey(
-            new PublicKey("BKFeciwmNpazwRNhkErWEprsAzAVPSnEKeZTom5Z1hZ6")
-          ),
+          
           // Admin destination for USDC
           serializePubkey(
             new PublicKey("7c4iqwVYbSKqS7vD2EPqxkvA5W1J8nxSVofj4c1S84t2")
