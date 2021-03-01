@@ -65,7 +65,7 @@ export class Malloc {
   }
 
   public registerCall(args: RegisterCallArgs) {
-    if (!this.wallet) {
+    if (!this.wallet && !this.userPubKeyAlt) {
       alert("please connect your wallet first");
       throw new Error("wallet not connected");
     }
@@ -551,7 +551,7 @@ export class Malloc {
   }
 
   createBasket(args: CreateBasketArgs) {
-    if (!this.wallet) {
+    if (!this.wallet && !this.userPubKeyAlt) {
       alert("please connect your wallet first");
       throw new Error("wallet not connected");
     }
@@ -564,8 +564,7 @@ export class Malloc {
         },
         {
           isWritable: false,
-          pubkey: ((this.wallet as any) as WalletAdapter)
-            .publicKey as PublicKey,
+          pubkey: this.wallet?.publicKey as PublicKey || this.userPubKeyAlt,
           isSigner: true,
         },
       ],

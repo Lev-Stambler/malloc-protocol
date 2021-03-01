@@ -16,12 +16,16 @@ const progId = new PublicKey(progKey);
 import "mocha";
 import { serializePubkey, trimBuffer } from "../src/utils/utils";
 import { MallocState, PubKeyRep, WCallSimple } from "../src/models/malloc";
+import { registerTokSwapWCall } from "../src/actions/token-swap";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
 import { WalletProvider } from "../src/contexts/wallet";
 import { WRAPPED_SOL_MINT } from "@project-serum/serum/lib/token-instructions";
 import { createTokenAccount } from "../src/actions";
 import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { TokenSwap } from "@solana/spl-token-swap";
+import { serialize } from "borsh";
+import BN from "bn.js";
 
 const SolanaNet = "https://devnet.solana.com";
 const SIMPLE_PASS_THROUGH_WCALL = new PublicKey(
@@ -121,7 +125,7 @@ async function sendGeneralInstruction(
     );
     return txRet;
   } catch (e) {
-    console.error(e);
+    console.error("Error with send general", e);
     throw e;
   }
 }
@@ -164,6 +168,10 @@ describe("Run a standard set of Malloc tests", async function () {
   this.timeout(200000);
   let malloc_class: Malloc;
   before(async function () {
+    this.timeout(200000);
+    connection = await initAccounts();
+    await initMallocData();
+
     malloc_class = new Malloc(
       data_account.publicKey,
       progId,
@@ -171,10 +179,7 @@ describe("Run a standard set of Malloc tests", async function () {
       undefined,
       {}
     );
-
-    this.timeout(200000);
-    connection = await initAccounts();
-    await initMallocData();
+    malloc_class.setUserPubKeyAlt(account.publicKey);
 
     await doGeneralInstrSingleton({
       NewSupportedWCallInput: {
@@ -193,7 +198,7 @@ describe("Run a standard set of Malloc tests", async function () {
     }
   });
 
-  it("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
+  xit("add some wcall inputs, register a new WCall, then create a basket, then execute that basket", async () => {
     let instsDummy = [];
 
     const createWCallAssociatedAccountsInsts: TransactionInstruction[] = [];
@@ -279,8 +284,6 @@ describe("Run a standard set of Malloc tests", async function () {
       },
     });
 
-    malloc_class.setUserPubKeyAlt(account.publicKey);
-
     await malloc_class.refresh();
     const rent = await malloc_class.getEphemeralAccountRent();
     const insts: TransactionInstruction[] = [];
@@ -348,57 +351,55 @@ describe("Run a standard set of Malloc tests", async function () {
 
   it("Try token swap out", async () => {
     let insts: TransactionInstruction[] = [];
-    const WRAPPED_INTO_MINT = new PublicKey("AASAS");
-    const SWAP_WCALL = new PublicKey("ASAS");
     const signers: Account[] = [];
-    const swapIntoAccount = createTokenAccount(
+
+    const sourceAccount = createTokenAccount(
       insts,
       account.publicKey,
       await malloc_class.getEphemeralAccountRent(),
-      WRAPPED_INTO_MINT,
+      // Token A Mint
+      new PublicKey("HqrhXafTxwqk9G1nf47YWDvTpB5jDtmUnWTsU7mse41S"),
       account.publicKey,
       signers
     );
-    insts.push(
-      malloc_class.registerCall({
-        call_name: "SWAP SOL for MINT",
-        wcall: {
-          Simple: {
-            wcall: serializePubkey(SWAP_WCALL),
-            input: "WSol",
-            associated_accounts: [
-              serializePubkey(TOKEN_SWAP_PROG),
-              serializePubkey(SWAP_AUTH),
-              serializePubkey(WRAPPED_SOL_MINT),
-              serializePubkey(WRAPPED_INTO_MINT),
-              serializePubkey(swapIntoAccount),
-              serializePubkey(POOL_TOKEN_MINT),
-              serializePubkey(FEE_ACCOUNT)
-            ],
-          } as WCallSimple<PubKeyRep>,
-        },
-      })
+    const destAccount = createTokenAccount(
+      insts,
+      account.publicKey,
+      await malloc_class.getEphemeralAccountRent(),
+      // Token B Mint
+      new PublicKey("4dY4fUtB7vGQXRfQd5m4KR8fcT4U2yWLT3xCQM5qgFhS"),
+      account.publicKey,
+      signers
     );
-    insts.push(
+
+    await sendGeneralInstruction(insts, signers)
+    console.log("Create tok swap accounts")
+
+    // TODO: approve new input for the swap
+    await sendGeneralInstruction([
+      registerTokSwapWCall(malloc_class, destAccount),
+    ]);
+    console.log("Registered WCall")
+
+    await sendGeneralInstruction([
       malloc_class.createBasket({
         name: "Swap basic basket",
         calls: ["SWAP SOL for MINT"],
         splits: [1000],
         input: "WSol",
-      })
-    );
-    await sendGeneralInstruction(insts, []);
+      }),
+    ]);
+    console.log("Basket created")
     insts = [];
-    const amountInFundedWSol = 1000 * 1000;
-    const fundedWSolAccount = await fundWithWSol(amountInFundedWSol + 1000);
+    const amountInFunded = 0;
 
     const basketNode = malloc_class.getCallGraph("Just a simp");
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
-      fundedWSolAccount,
+      sourceAccount,
       await malloc_class.getEphemeralAccountRent(),
-      amountInFundedWSol
+      amountInFunded
     );
 
     const txRet = await sendGeneralInstruction(insts, accounts);
