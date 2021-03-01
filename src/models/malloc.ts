@@ -33,7 +33,8 @@ export interface WCallChainedNode {
   input: string;
   output: string;
   wcall: PublicKey;
-  callbackBasket: BasketNode;
+  // Very important to keep the snake case to match the prog state
+  callback_basket: BasketNode;
   associateAccounts: PublicKey[];
   graphElementId?: string;
 }
@@ -72,14 +73,18 @@ export interface WCallChained<PubKeyType> {
   associated_accounts: PubKeyType[];
 }
 
-export function isWCallChained(v: any) {
-  return v.hasOwnProperty("callbackBasket");
+export function isWCallChained(
+  v: WCallChained<any> | WCallChainedNode | WCallSimple<any> | WCallSimpleNode
+) {
+  return v.hasOwnProperty("callback_basket");
 }
 
 export interface MallocState {
   // name to public key
   wrapped_calls: {
-    [name: string]: { Chained: WCallChained<PublicKey> } | { Simple: WCallSimple<PublicKey> };
+    [name: string]:
+      | { Chained: WCallChained<PublicKey> }
+      | { Simple: WCallSimple<PublicKey> };
   };
   baskets: {
     [name: string]: Basket;
@@ -92,7 +97,9 @@ export interface MallocState {
 
 export interface RegisterCallArgs {
   call_name: String;
-  wcall: { Chained: WCallChained<PubKeyRep> } | { Simple: WCallSimple<PubKeyRep> };
+  wcall:
+    | { Chained: WCallChained<PubKeyRep> }
+    | { Simple: WCallSimple<PubKeyRep> };
 }
 export interface CreateBasketArgs {
   name: string;
@@ -102,6 +109,7 @@ export interface CreateBasketArgs {
 }
 export interface EnactBasketArgs {
   basket_name: string;
+  rent_given: number;
 }
 export interface InitMallocArgs {}
 export interface NewSupportedWCallInput {
