@@ -552,7 +552,7 @@ export class MallocStateBorsh extends Assignable {
     return deserialize(
       SCHEMA,
       MallocStateBorsh,
-      Buffer.from(bytes.slice(start, start + size))
+      buf
     );
   }
 
@@ -584,99 +584,6 @@ export class MallocStateBorsh extends Assignable {
 }
 
 export const SCHEMA = new Map<Function, any>([
-<<<<<<< HEAD
-  [InstructionData, {
-    kind: 'enum', field: 'enum', values: [
-      ['RegisterCall', RegisterCallInstructionData],
-      ['CreateBasket', CreateBasketInstructionData],
-      ['EnactBasket', EnactBasketInstructionData],
-      ['NewSupportedWCallInput', NewSupportedWCallInputInstructionData],
-      ['InitMalloc', InitMallocInstructionData]
-    ]
-  }],
-  [RegisterCallInstructionData, {
-    kind: 'struct', fields: [
-      ['call_name', 'string'],
-      ['wcall_enum', WCallBorsh],
-    ]
-  }],
-  [CreateBasketInstructionData, {
-    kind: 'struct', fields: [
-      ['name', 'string'],
-      ['calls', ['string']],
-      ['splits', ['u64']],
-      ['input', ['u8']],
-    ]
-  }],
-  [EnactBasketInstructionData, {
-    kind: 'struct', fields: [
-      ['basket_name', 'string'],
-      ['rent_given', 'u64']
-    ]
-  }],
-  [NewSupportedWCallInputInstructionData, {
-    kind: 'struct', fields: [
-      ['input_name', 'string'],
-      ['input_address', [32]]
-    ]
-  }],
-  [InitMallocInstructionData, {
-    kind: 'struct', fields: []
-  }],
-  [WCallInputBorsh, {
-    kind: 'struct', fields: [
-      ['name', 'string'],
-      ['input', ['u8']],
-    ]
-  }],
-  [BasketEntryBorsh, {
-    kind: 'struct', fields: [
-      ['name', 'string'],
-      ['basket', [BasketBorsh]],
-    ]
-  }],
-  [MallocStateBorsh, {
-    kind: 'struct', fields: [
-      ['wrapped_calls', [WCallEntryBorsh]],
-      ['baskets', [BasketEntryBorsh]],
-      ['supported_wrapped_call_inputs', [WCallInputBorsh]],
-    ]
-  }],
-  [WCallBorsh, {
-    kind: 'enum', field: 'enum', values: [
-      ['Simple', WCallSimpleBorsh],
-      ['Chained', WCallChainedBorsh]
-    ]
-  }],
-  [WCallChainedBorsh, {
-    kind: 'struct', fields: [
-      ['wcall', ['u8']],
-      ['callback_basket', 'string'],
-      ['input', 'string'],
-      ['output', 'string'],
-      ['associated_accounts', [['u8']]],
-      ['associated_account_is_writable', 'u8'],
-      ['associated_account_is_signer', 'u8']
-    ]
-  }],
-  [WCallSimpleBorsh, {
-    kind: 'struct', fields: [
-      ['wcall', ['u8']],
-      ['input', 'string'],
-      ['associated_accounts', [['u8']]],
-      ['associated_account_is_writable', ['u8']],
-      ['associated_account_is_signer', ['u8']]
-    ]
-  }],
-  [BasketBorsh, {
-    kind: 'struct', fields: [
-      ['calls', ['string']],
-      ['splits', ['u64']],
-      ['creator', ['u8']],
-      ['input', 'string'],
-    ]
-  }],
-=======
   [
     InstructionData,
     {
@@ -729,7 +636,7 @@ export const SCHEMA = new Map<Function, any>([
       kind: "struct",
       fields: [
         ["input_name", "string"],
-        ["input_address", ["u8"]],
+        ["input_address", [32]],
       ],
     },
   ],
@@ -746,7 +653,7 @@ export const SCHEMA = new Map<Function, any>([
       kind: "struct",
       fields: [
         ["name", "string"],
-        ["input", ["u8"]],
+        ["input", [32]],
       ],
     },
   ],
@@ -823,5 +730,4 @@ export const SCHEMA = new Map<Function, any>([
       ],
     },
   ],
->>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
 ]);
