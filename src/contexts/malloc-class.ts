@@ -44,6 +44,7 @@ export class Malloc {
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
   public state: MallocState | undefined;
+  private useDummyState: boolean
   private tokenAccounts: any;
   private nativeAccounts: any;
 
