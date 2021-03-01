@@ -12,15 +12,17 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub fn get_accounts_for_enact_basket_wcall<'a>(accounts_remaining: &[AccountInfo<'a>], start_idx: usize,
-    numb_associated_accounts: usize, malloc_input: &'a AccountInfo<'a>)
-      -> (Vec<AccountInfo<'a>>, usize) {
+pub fn get_accounts_for_enact_basket_wcall<'a>(
+    accounts_remaining: &[AccountInfo<'a>],
+    start_idx: usize,
+    numb_associated_accounts: usize,
+    malloc_input: &'a AccountInfo<'a>,
+) -> (Vec<AccountInfo<'a>>, usize) {
     // TODO: check to ensure associated_accounts_pubkeys is correct
     //
     // + 2 because 1 for exec account 1 for split account
-    let mut inp_accounts = (accounts_remaining
-        [start_idx..(numb_associated_accounts + start_idx + 2)])
-        .to_vec();
+    let mut inp_accounts =
+        (accounts_remaining[start_idx..(numb_associated_accounts + start_idx + 2)]).to_vec();
     // Add the malloc input account to after the exec account
     inp_accounts.insert(1, malloc_input.to_owned());
     (inp_accounts, (numb_associated_accounts + 2))
@@ -46,4 +48,3 @@ pub fn enact_wcall(program_id: &Pubkey, inp_accounts: &[AccountInfo]) -> Program
     invoke(&inact_inst, inp_accounts)?;
     Ok(())
 }
-

@@ -8,6 +8,7 @@ import {
 import { sign } from "crypto";
 import {
   createTokenAccount,
+  createUninitializedAccount,
   DEFAULT_TEMP_MEM_SPACE,
   findOrCreateAccountByMint,
 } from "../actions/account";
@@ -30,7 +31,7 @@ import {
   MallocState,
   NewSupportedWCallInput,
 } from "../models/malloc";
-import {fakeMallocState} from "../utils/fakeState";
+import { fakeMallocState } from "../utils/fakeState";
 import { TOKEN_PROGRAM_ID } from "../utils/ids";
 import { serializePubkey, trimBuffer } from "../utils/utils";
 import { sendTransaction } from "./connection";
@@ -62,7 +63,7 @@ export class Malloc {
     this.tokenAccounts = accountsContext.userAccounts;
     this.nativeAccounts = accountsContext.nativeAccounts;
     this.useDummyState = dummyState;
-    
+
     if (dummyState) {
       this.state = fakeMallocState();
       console.log(this.state);
@@ -80,13 +81,20 @@ export class Malloc {
     }
 
     let wcall: any;
+    let associated_accounts: number[][];
 
     if (args.wcall.hasOwnProperty("Simple")) {
       wcall = args.wcall as { Simple: WCallSimple<number[]> };
       wcall.Simple.wcall = wcall.Simple.wcall;
+      associated_accounts = (args.wcall as { Simple: WCallSimple<number[]> })
+        .Simple.associated_accounts;
+      wcall.Simple.associated_accounts = [];
     } else {
       wcall = args.wcall as { Chained: WCallChained<number[]> };
       wcall.Chained.wcall = wcall.Chained.wcall;
+      associated_accounts = (args.wcall as { Simple: WCallChained<number[]> })
+        .Simple.associated_accounts;
+      wcall.Chained.associated_accounts = [];
     }
 
     const sending_args = {
@@ -106,9 +114,23 @@ export class Malloc {
           pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
           isSigner: true,
         },
+        ...associated_accounts.map((account: number[]) => {
+          return {
+            isWritable: false,
+            isSigner: false,
+            pubkey: new PublicKey(account),
+          };
+        }),
       ],
       programId: this.progId,
-      data: Buffer.from(JSON.stringify({ RegisterCall: sending_args })),
+      data: Buffer.from(
+        JSON.stringify({
+          RegisterCall: {
+            call_name: args.call_name,
+            wcall,
+          },
+        })
+      ),
     });
   }
 
@@ -188,7 +210,7 @@ export class Malloc {
       this.state = {
         ...parsedState,
         ...this.state,
-      }
+      };
     } else {
       this.state = this.parseAccountState(accountInfo.data);
     }
@@ -429,7 +451,7 @@ export class Malloc {
       pubkey: mintPubkey,
       isWritable: false,
       isSigner: false,
-    })
+    });
 
     this.getAccountMetasFromCallGraphHelper(
       basket,
@@ -455,7 +477,9 @@ export class Malloc {
     amount: number
   ): Account[] {
     let newAccounts: Account[] = [];
-    const mintPubkey = this.state?.supported_wrapped_call_inputs[basket.input] as PublicKey
+    const mintPubkey = this.state?.supported_wrapped_call_inputs[
+      basket.input
+    ] as PublicKey;
     const mallocInputPubkey = createTokenAccount(
       instructions,
       this.wallet?.publicKey || (this.userPubKeyAlt as PublicKey),
@@ -527,37 +551,43 @@ export class Malloc {
       name: basketName,
       splits: basket.splits,
       input: basket.input,
-      calls: (depth <= 0) ? [] : basket.calls.map((callName) => {
-        const callDescriptor = (this.state as MallocState).wrapped_calls[
-          callName
-        ];
-        const callDescriptorType = (callDescriptor as any).Chained
-          ? WCallTypes.Chained
-          : WCallTypes.Simple;
-        switch (callDescriptorType) {
-          case WCallTypes.Chained: {
-            const callData = (callDescriptor as any)
-              .Chained as WCallChained<PublicKey>;
-            return {
-              name: callName,
-              wcall: callData.wcall,
-              input: callData.input,
-              output: callData.output,
-              callbackBasket: this.getCallGraph(callData.callback_basket, depth - 1),
-            } as WCallChainedNode;
-          }
-          default: {
-            // "Simple"
-            const callData = (callDescriptor as any)
-              .Simple as WCallSimple<PublicKey>;
-            return {
-              name: callName,
-              input: callData.input,
-              wcall: callData.wcall,
-            } as WCallSimpleNode;
-          }
-        }
-      }),
+      calls:
+        depth <= 0
+          ? []
+          : basket.calls.map((callName) => {
+              const callDescriptor = (this.state as MallocState).wrapped_calls[
+                callName
+              ];
+              const callDescriptorType = (callDescriptor as any).Chained
+                ? WCallTypes.Chained
+                : WCallTypes.Simple;
+              switch (callDescriptorType) {
+                case WCallTypes.Chained: {
+                  const callData = (callDescriptor as any)
+                    .Chained as WCallChained<PublicKey>;
+                  return {
+                    name: callName,
+                    wcall: callData.wcall,
+                    input: callData.input,
+                    output: callData.output,
+                    callbackBasket: this.getCallGraph(
+                      callData.callback_basket,
+                      depth - 1
+                    ),
+                  } as WCallChainedNode;
+                }
+                default: {
+                  // "Simple"
+                  const callData = (callDescriptor as any)
+                    .Simple as WCallSimple<PublicKey>;
+                  return {
+                    name: callName,
+                    input: callData.input,
+                    wcall: callData.wcall,
+                  } as WCallSimpleNode;
+                }
+              }
+            }),
     };
   }
 
@@ -605,14 +635,14 @@ export class Malloc {
     const splMeta = {
       isWritable: false,
       pubkey: TOKEN_PROGRAM_ID,
-      isSigner: false
-    }  
+      isSigner: false,
+    };
 
     return new TransactionInstruction({
       keys: [progStateMeta, walletMeta, splMeta, ...requiredAccountMetas],
       programId: this.progId,
       data: Buffer.from(JSON.stringify({ EnactBasket: args })),
-    });  
+    });
   }
 
   public async sendMallocTransaction(
@@ -631,22 +661,25 @@ export class Malloc {
     await this.refresh();
   }
 
-  public getCallNode(callName: string): WCallChainedNode | WCallSimpleNode | undefined {
+  public getCallNode(
+    callName: string
+  ): WCallChainedNode | WCallSimpleNode | undefined {
     if (!this.state) {
       return undefined;
     }
 
     const callData = this.state.wrapped_calls[callName];
-    
+
     if (isWCallChained(callData)) {
-      const chainedCallData = (callData as any).Chained as WCallChained<PublicKey>;
+      const chainedCallData = (callData as any)
+        .Chained as WCallChained<PublicKey>;
       return {
         name: callName,
         input: chainedCallData.input,
         output: chainedCallData.output,
         wcall: chainedCallData.wcall,
-        associateAccounts: chainedCallData.associated_accounts, 
-      }
+        associateAccounts: chainedCallData.associated_accounts,
+      };
     }
 
     const simpleCallData = (callData as any).Simple as WCallSimple<PublicKey>;
@@ -654,21 +687,21 @@ export class Malloc {
       name: callName,
       input: simpleCallData.input,
       wcall: simpleCallData.wcall,
-      associateAccounts: simpleCallData.associated_accounts
-    }
+      associateAccounts: simpleCallData.associated_accounts,
+    };
   }
 
   public getBasketNames(): string[] {
     if (!this.state) {
-      return []
+      return [];
     }
     return Object.keys(this.state.baskets);
   }
 
   public getCallNames(): string[] {
     if (!this.state) {
-      return []
+      return [];
     }
-    return Object.keys(this.state.wrapped_calls)
+    return Object.keys(this.state.wrapped_calls);
   }
 }
