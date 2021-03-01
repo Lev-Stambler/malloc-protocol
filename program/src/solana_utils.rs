@@ -2,7 +2,7 @@
 
 use solana_program::{program_error::ProgramError, program_option::COption, pubkey::Pubkey};
 
-pub  const pub_key_size: usize = 32;
+pub const pub_key_size: usize = 32;
 
 pub fn unpack_pubkey(input: &[u8]) -> Result<(Pubkey, &[u8]), ProgramError> {
     if input.len() >= pub_key_size {
@@ -31,7 +31,7 @@ pub fn unpack_pubkey_option(input: &[u8]) -> Result<(COption<Pubkey>, &[u8]), Pr
             let pk = Pubkey::new(key);
             Ok((COption::Some(pk), rest))
         }
-        _ => Err(ProgramError::InvalidInstructionData.into())
+        _ => Err(ProgramError::InvalidInstructionData.into()),
     }
 }
 
@@ -44,4 +44,3 @@ pub fn pack_pubkey_option(value: &COption<Pubkey>, buf: &mut Vec<u8>) {
         COption::None => buf.push(0),
     }
 }
-

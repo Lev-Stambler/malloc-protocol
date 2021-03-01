@@ -39,7 +39,7 @@ export function MallocProvider({ children = null as any }) {
   const malloc = useMemo(
     () => {
       console.log("memo")
-      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext)
+      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext, true)
     },
     [connection, wallet, accountsContext]
   );

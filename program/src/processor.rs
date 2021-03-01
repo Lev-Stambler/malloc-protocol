@@ -3,15 +3,14 @@ use crate::instruction::{self, Basket, ProgInstruction, ProgState, WCall};
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    program::invoke,
     msg,
+    program::invoke,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack},
     pubkey::Pubkey,
     program_option::{COption}
 };
 use std::str::from_utf8;
-
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
@@ -21,13 +20,28 @@ fn process_register_call(
     prog_state: &mut ProgState,
     program_data: *mut u8,
     name: String,
-    wcall: WCall,
+    mut wcall: WCall,
+    associated_accounts: Vec<Pubkey>
 ) -> ProgramResult {
     if let Some(_addr) = prog_state.wrapped_calls.get(&name) {
         msg!("MALLOC LOG: This name already exists as a registered call");
         return Err(ProgramError::InvalidInstructionData);
     }
     // TODO: if it's not in there, do we want the user to allow for adding this?
+    if associated_accounts.len() > 0 {
+        wcall = match wcall {
+            WCall::Simple { wcall, input, .. } => {
+                WCall::Simple {
+                    wcall, input, associated_accounts
+                }
+            }
+            WCall::Chained { wcall, callback_basket, input, output, .. } => {
+                WCall::Simple {
+                    wcall, input, associated_accounts
+                }
+            }
+        };
+    }
 
     let call_input = match &wcall {
         WCall::Simple { wcall, input, .. } => input,
@@ -124,15 +138,16 @@ fn process_enact_basket<'a>(
             caller_account.key,
             &vec![malloc_input.key, caller_account.key],
             amount_approve,
-        ).map_err(|e| ProgramError::Custom(10))?;
+        )
+        .map_err(|e| ProgramError::Custom(10))?;
         msg!("Calling invoke to approve");
         let accounts_for_approve = &[
             spl_account.to_owned(),
             malloc_input.to_owned(),
             split_account,
-            caller_account.to_owned()
+            caller_account.to_owned(),
         ];
-        invoke(&approve_inst, accounts_for_approve).map_err(|e| { ProgramError::Custom(11) })?;
+        invoke(&approve_inst, accounts_for_approve).map_err(|e| ProgramError::Custom(11))?;
         msg!("Approved is invoked");
 
         let wcall = prog_state
@@ -150,7 +165,7 @@ fn process_enact_basket<'a>(
                     start_idx,
                     remaining_accounts.len()
                 );
-                let (inp_accounts, idx_advance) = 
+                let (inp_accounts, idx_advance) =
                     crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
                     remaining_accounts, start_idx, associated_accounts_pubkeys.len(),
                     malloc_input, spl_account.to_owned());
@@ -169,7 +184,7 @@ fn process_enact_basket<'a>(
                     start_idx,
                     remaining_accounts.len()
                 );
-                let (mut inp_accounts, idx_advance) = 
+                let (mut inp_accounts, idx_advance) =
                     crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
                     remaining_accounts, start_idx, associated_accounts_pubkeys.len(), malloc_input, spl_account.to_owned());
                 start_idx += idx_advance;
@@ -265,12 +280,14 @@ pub fn process_instruction<'a>(
             // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
             let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
+            let associated_accounts = &accounts[2..];
             process_register_call(
                 account_info.owner,
                 &mut prog_state,
                 prog_data_ptr,
                 name,
                 wcall,
+                associated_accounts.into_iter().map(|account| *account.key).collect()
             )
         }
         ProgInstruction::EnactBasket { basket_name, rent_given } => {

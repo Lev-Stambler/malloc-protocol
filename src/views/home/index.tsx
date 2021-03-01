@@ -1,15 +1,14 @@
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Button, Col, Row } from "antd";
 import React, { useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { ConnectButton } from "../../components/ConnectButton";
 import { useNativeAccount } from "../../contexts/accounts";
 import { useConnectionConfig } from "../../contexts/connection";
 import { useMarkets } from "../../contexts/market";
 import { formatNumber } from "../../utils/utils";
+import { useWallet } from "../../contexts/wallet";
 
 export const HomeView = () => {
   const { marketEmitter, midPriceInUSD } = useMarkets();
+  const { connected } = useWallet();
   const { tokenMap } = useConnectionConfig();
   const { account } = useNativeAccount();
 
@@ -32,28 +31,22 @@ export const HomeView = () => {
     };
   }, [marketEmitter, midPriceInUSD, tokenMap]);
 
-  return (
-    <Row gutter={[16, 16]} align="middle">
-      <Col span={24}>
-        <h2>Your balance: {balance} SOL</h2>
-      </Col>
+  // TODO: have a better way to tell if wallet is connected
+  if (!connected) {
+    return (
+      <div className="flex flex-row justify-around">
+        <div className="flex flex-col">
+          <p>Please connect a Solana wallet to continue.</p>
+        </div>
+      </div>
+    );
+  }
 
-      <Col span={12}>
-        <ConnectButton />
-      </Col>
-      <Col span={12}>
-        <Link to="/faucet">
-          <Button>Faucet</Button>
-        </Link>
-      </Col>
-      <Col span={12}>
-        <Link to="/register-wcall">
-          <Button>Register Wcall</Button>
-        </Link>
-      </Col>
-      <Col span={24}>
-        <div className="builton" />
-      </Col>
-    </Row>
+  return (
+    <div className="flex flex-row justify-around my-8 px-8">
+      <div className="flex flex-col">
+        <h2>Your balance: {balance} SOL</h2>
+      </div>
+    </div>
   );
 };

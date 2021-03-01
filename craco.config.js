@@ -17,11 +17,18 @@ module.exports = {
       options: {
         lessLoaderOptions: {
           lessOptions: {
-            modifyVars: { "@primary-color": "#2abdd2" },
             javascriptEnabled: true,
           },
         },
       },
     },
   ],
+  style: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ]
+    }
+  }
 };

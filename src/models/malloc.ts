@@ -28,6 +28,7 @@ export interface BasketNode {
   input: string;
   splits: number[];
   calls: (WCallSimpleNode | WCallChainedNode)[];
+  graphElementId?: string;
 }
 
 export interface WCallSimpleNode {
@@ -35,6 +36,7 @@ export interface WCallSimpleNode {
   input: string;
   wcall: PublicKey;
   associateAccounts: PublicKey[];
+  graphElementId?: string;
 }
 
 export interface WCallChainedNode {
@@ -45,6 +47,7 @@ export interface WCallChainedNode {
   // Very important to keep the snake case to match the prog state
   callback_basket: BasketNode;
   associateAccounts: PublicKey[];
+  graphElementId?: string;
 }
 
 export interface Basket {

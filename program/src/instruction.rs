@@ -71,6 +71,7 @@ pub struct ProgState {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ProgInstruction {
+    /// If extra account infos are passed in, they are counted as the associated_accounts
     RegisterCall {
         call_name: WCallName,
         wcall_enum: WCall,
@@ -157,6 +158,21 @@ impl ProgState {
         serde_json::to_vec(&self).unwrap()
     }
 }
+
+impl WCall {
+    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+        serde_json::from_slice(input).map_err(|e| {
+            msg!("MALLOC LOG: Error parsing input data {:?}", e);
+            ProgramError::InvalidInstructionData
+        })
+    }
+
+    pub fn pack(&self) -> Vec<u8> {
+        // TODO: better error handling?
+        serde_json::to_vec(self).unwrap()
+    }
+}
+
 impl ProgInstruction {
     // TODO: make use of something more efficient than JSON
     /// Using json packing

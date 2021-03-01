@@ -166,7 +166,7 @@ export function WalletProvider({ children = null as any }) {
         onCancel={close}
         width={400}
       >
-        {WALLET_PROVIDERS.map((provider) => {
+        {WALLET_PROVIDERS.map((provider, i) => {
           const onClick = function () {
             setProviderUrl(provider.url);
             setAutoConnect(true);
@@ -175,6 +175,7 @@ export function WalletProvider({ children = null as any }) {
 
           return (
             <Button
+              key={i}
               size="large"
               type={providerUrl === provider.url ? "primary" : "ghost"}
               onClick={onClick}

@@ -1,27 +1,60 @@
-import React from "react";
-import "./../../App.less";
-import { Layout } from "antd";
+import React, { useState } from "react";
+import { Layout, Menu } from 'antd';
 import { Link } from "react-router-dom";
-
-import { LABELS } from "../../constants";
+import {
+  DesktopOutlined,
+  BarsOutlined,
+  PlusOutlined,
+  DollarOutlined,
+} from '@ant-design/icons';
 import { AppBar } from "../AppBar";
 
-const { Header, Content } = Layout;
+const { Header, Content, Footer, Sider } = Layout;
+const { SubMenu } = Menu;
 
-export const AppLayout = React.memo((props: any) => {
+export const AppLayout = (props: any) => {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="App wormhole-bg">
-      <Layout title={LABELS.APP_TITLE}>
-        <Header className="App-Bar">
-          <Link to="/">
-            <div className="app-title">
-              <h2>Solana DAPP</h2>
-            </div>
-          </Link>
-          <AppBar />
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider collapsible collapsed={collapsed} onCollapse={() => setCollapsed(!collapsed)}>
+        <div className="logo" />
+        <Menu theme="dark" defaultSelectedKeys={['1']} mode="inline">
+          <Menu.Item key="1" icon={<DesktopOutlined />}>
+            <Link to="/">
+            Dashboard
+            </Link>
+          </Menu.Item>
+          <Menu.Item key="2" icon={<DollarOutlined/>}>
+            <Link to="/faucet">
+              Faucet
+            </Link>
+          </Menu.Item>
+          <Menu.Item key="6" icon={<PlusOutlined/>}>
+            <Link to="/graph/:new">
+              Create Basket
+            </Link>
+          </Menu.Item>
+          <SubMenu key="baskets" icon={<BarsOutlined/>} title="My Baskets">
+            <Menu.Item key="3">Buy some eth</Menu.Item>
+            <Menu.Item key="4">Totally sick loopty-loop</Menu.Item>
+            <Menu.Item key="5">top-secret portfolio</Menu.Item>
+          </SubMenu>
+        </Menu>
+      </Sider>
+      <Layout>
+        <Header style={{ padding: '0 0 0 16px' }} >
+          <div className="h-full w-full">
+            <AppBar />
+          </div>
         </Header>
-        <Content style={{ padding: "0 50px" }}>{props.children}</Content>
+        <Content style={{ margin: '0 16px' }}>
+          <div className="h-full w-full">
+            {props.children}
+          </div>
+        </Content>
+        <Footer style={{ textAlign: 'center' }}>Note: This is a *very* experimental demo - expect things to explode intermittently</Footer>
       </Layout>
-    </div>
+    </Layout>
   );
-});
+};
