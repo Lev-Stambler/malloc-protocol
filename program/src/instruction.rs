@@ -143,8 +143,9 @@ impl ProgState {
         }
     }
 
-    pub fn write_new_prog_state<'a>(mut encoded: Vec<u8>, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
-        account_info.data.replace(&mut encoded);
+    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        let encoded = self.pack();
+        (*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
         Ok(())
     }
 

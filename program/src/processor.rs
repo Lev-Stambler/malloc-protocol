@@ -3,7 +3,7 @@ use crate::instruction::{
     self, Basket, BasketEntry, ProgInstruction, ProgState, WCall, WCallEntry, WCallInputEntry,
 };
 use solana_program::{
-    account_info::AccountInfo,
+    account_info::{Account, AccountInfo, next_account_info},
     entrypoint::ProgramResult,
     msg,
     program::invoke,
@@ -15,16 +15,17 @@ use solana_program::{
 use std::str::from_utf8;
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-type EnactBasketResult = std::result::Result<usize, ProgramError>;
+type EnactBasketResult = std::result::Result<(ProgState, usize), ProgramError>;
+type ProgStateResult = std::result::Result<ProgState, ProgramError>;
 
-fn process_register_call<'a>(
+fn process_register_call<'a, 'b>(
     sender: &Pubkey,
-    prog_state: &'a mut ProgState,
+    prog_state: ProgState,
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
     associated_accounts_infos: Vec<AccountInfo>,
-) -> ProgramResult {
+) -> ProgStateResult {
     if let Some(_entry) = prog_state
         .wrapped_calls
         .iter()
@@ -92,17 +93,17 @@ fn process_register_call<'a>(
         name: name.clone(),
         wcall: updated_wcall,
     });
-    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
+    prog_state.write_new_prog_state(program_info)?;
     msg!("MALLOC LOG: registered call '{}'", name);
-    Ok(())
+    Ok(prog_state)
 }
 
 fn process_new_supported_wrapped_call_input<'a>(
-    prog_state: &mut ProgState,
+    prog_state: ProgState,
     program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
-) -> ProgramResult {
+) -> ProgStateResult {
     if let None = prog_state
         .supported_wrapped_call_inputs
         .iter()
@@ -118,13 +119,12 @@ fn process_new_supported_wrapped_call_input<'a>(
         msg!("MALLOC LOG: This input has already been registered");
         return Err(ProgramError::InvalidInstructionData);
     }
-    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
     msg!("MALLOC LOG: registered new call input '{}'", input_name);
-    Ok(())
+    Ok(prog_state)
 }
 
 fn process_enact_basket<'a>(
-    prog_state: &ProgState,
+    prog_state: ProgState,
     basket_name: String,
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
@@ -252,7 +252,7 @@ fn process_enact_basket<'a>(
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
                 crate::wcall_handlers::enact_wcall(&wcall, &inp_accounts, amount_approve)?;
-                let new_start_idx = process_enact_basket(
+                let (new_prog_state, new_start_idx) = process_enact_basket(
                     prog_state,
                     callback_basket.to_owned(),
                     remaining_accounts,
@@ -265,23 +265,23 @@ fn process_enact_basket<'a>(
                 // TODO: ??? no clue why tbh
                 // Account for off by 1 created by double counting the output
                 start_idx = new_start_idx - 1;
+                prog_state = new_prog_state;
             }
         };
     }
     // invoke(&instruction, accounts)?;
     msg!("MALLOC LOG: enacted basket '{}'", basket_name);
-    Ok(start_idx)
+    Ok((prog_state, start_idx))
 }
 
-fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
+fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgStateResult {
     let current_contents = &program_info.data.borrow();
     if let Ok(_) = ProgState::unpack(current_contents) {
         return Err(ProgramError::InvalidInstructionData);
     }
     let new_state = ProgState::new();
-    ProgState::write_new_prog_state(new_state.pack(), program_info)?;
     msg!("MALLOC LOG: init malloc done!");
-    Ok(())
+    Ok(new_state)
 }
 
 fn process_create_basket<'a>(
@@ -299,7 +299,7 @@ fn process_create_basket<'a>(
         name: name.clone(),
         basket: new_basket,
     });
-    ProgState::write_new_prog_state(prog_state.pack(), program_info)?;
+    prog_state.write_new_prog_state(program_info)?;
     msg!("MALLOC LOG: created new basket '{}'", name);
     Ok(())
 }
@@ -327,15 +327,14 @@ pub fn process_instruction<'a>(
     }
     */
     let account_info_iter = &mut accounts.iter();
-    let program_info = account_info_iter
-        .next()
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-    //msg!("MALLOC LOG: program_info_pubkey = {}", program_info.key);
+    let program_info = next_account_info(account_info_iter)?;
 
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
         //msg!("MALLOC LOG: InitMalloc");
-        return process_init_malloc(program_info);
+        let prog_state = process_init_malloc(program_info)?;
+        Account::pack(prog_state, &mut program_info.data.borrow_mut());
+        return Ok(());
     }
 
     let mut prog_state = ProgState::unpack(&program_info.data.borrow())?;
@@ -344,7 +343,7 @@ pub fn process_instruction<'a>(
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    match instruction {
+    let new_state = match instruction {
         ProgInstruction::RegisterCall {
             call_name: name,
             wcall_enum: wcall,
@@ -355,12 +354,12 @@ pub fn process_instruction<'a>(
             let associated_accounts = &accounts[2..];
             process_register_call(
                 account_info.owner,
-                &mut prog_state,
+                prog_state,
                 program_info,
                 name,
                 wcall,
                 associated_accounts.to_owned()
-            )
+            )?
         }
         ProgInstruction::EnactBasket {
             basket_name,
@@ -374,8 +373,8 @@ pub fn process_instruction<'a>(
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            let _ = process_enact_basket(
-                &prog_state,
+            let (new_state, _) = process_enact_basket(
+                prog_state,
                 basket_name,
                 &accounts[3..],
                 0,
@@ -384,25 +383,26 @@ pub fn process_instruction<'a>(
                 account_info.to_owned(),
                 rent_given,
             )?;
-            Ok(())
+            new_state
         }
-        ProgInstruction::InitMalloc {} => Ok(()),
+        ProgInstruction::InitMalloc {} => prog_state,
         ProgInstruction::CreateBasket {
             name,
             calls,
             splits,
             input,
-        } => process_create_basket(&mut prog_state, program_info, name, calls, splits, input),
+        } => process_create_basket(prog_state, program_info, name, calls, splits, input)?,
         ProgInstruction::NewSupportedWCallInput {
             input_name,
             input_address,
         } => process_new_supported_wrapped_call_input(
-            &mut prog_state,
+            prog_state,
             program_info,
             input_name,
             input_address,
-        ),
-    }
+        )?,
+    };
+    Ok(())
 }
 
 #[cfg(test)]
