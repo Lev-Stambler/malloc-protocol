@@ -623,8 +623,8 @@ export const SCHEMA = new Map<Function, any>([
       ['wcall', ['u8']],
       ['input', 'string'],
       ['associated_accounts', [['u8']]],
-      ['associated_account_is_writable', 'u8'],
-      ['associated_account_is_signer', 'u8']
+      ['associated_account_is_writable', ['u8']],
+      ['associated_account_is_signer', ['u8']]
     ]
   }],
   [BasketBorsh, {

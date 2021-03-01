@@ -10,6 +10,7 @@ use solana_program::{
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
+    entrypoint::ProgramResult,
 };
 use std::{convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
@@ -47,7 +48,7 @@ pub enum WCall {
     },
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Default, Clone)]
 pub struct Basket {
     /// The calls that the basket makes
     pub calls: Vec<WCallName>,
@@ -143,30 +144,28 @@ impl ProgState {
         }
     }
 
-    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
-        let encoded = self.pack();
-        (*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
-        Ok(())
-    }
+    // pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+    //     let encoded = self.pack();
+    //     (*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
+    //     Ok(())
+    // }
 
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let first_0 = input.iter().position(|&r| r == 0);
-
-        let inp_trimmed = if let Some(first_0_ind) = first_0 {
-            &input[0..first_0_ind]
-        } else {
-            input
-        };
-        Self::try_from_slice(input).map_err(|e| {
+        let len = usize::from_le_bytes(input[0..8].try_into().map_err(|e| ProgramError::InvalidInstructionData)?);
+        Self::try_from_slice(&input[8..8 + len]).map_err(|e| {
             msg!("MALLOC LOG: Error parsing state data {:?}", e);
             ProgramError::InvalidInstructionData
         })
     }
 
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
-    pub fn pack(&self) -> Vec<u8> {
+    pub fn pack(&self, dst: &mut [u8]) -> ProgramResult {
         // TODO: better error handling?
-        self.try_to_vec().unwrap()
+        let encoded = self.try_to_vec()?;
+        msg!("MALLOC LOG: encoded state: {:02X?}", encoded);
+        dst[0..8].copy_from_slice(&encoded.len().to_le_bytes());
+        dst[8..encoded.len()+8].copy_from_slice(encoded.as_slice());
+        Ok(())
     }
 }
 
@@ -175,7 +174,8 @@ impl ProgInstruction {
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         msg!("Number of bytes on input {}", input.len());
-        Self::try_from_slice(input).map_err(|e| {
+        let len = usize::from_le_bytes(input[0..8].try_into().map_err(|e| ProgramError::InvalidInstructionData)?);
+        Self::try_from_slice(&input[8..]).map_err(|e| {
             msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
