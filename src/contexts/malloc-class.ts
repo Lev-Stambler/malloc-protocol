@@ -134,6 +134,7 @@ export class Malloc {
         wrapped_calls: {},
         baskets: {},
         supported_wrapped_call_inputs: {},
+        nonce: -1
       };
     }
 

@@ -2,6 +2,7 @@
 
 // use crate::error::TokenError;
 use borsh::{BorshDeserialize, BorshSerialize};
+use byteorder::ByteOrder;
 use solana_program::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},
@@ -87,6 +88,7 @@ pub struct ProgState {
     pub baskets: Vec<BasketEntry>,
     /// map from WCallName to input it takes
     pub supported_wrapped_call_inputs: Vec<WCallInputEntry>,
+    pub nonce: u8
 }
 
 /// Instructions supported by the token program.
@@ -140,17 +142,19 @@ impl ProgState {
             wrapped_calls: Vec::new(),
             baskets: Vec::new(),
             supported_wrapped_call_inputs: Vec::new(),
+            nonce: 1
         }
     }
 
     pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        // TODO change back and try
         unsafe {
             let encoded = self.pack();
+            // msg!("Encoded size is {:?}", encoded);
+            msg!("Encoded 1 is {}", encoded[0]);
             let prog_data_ptr = (account_info.data.borrow()).as_ref().as_ptr() as *mut u8;
             let data = from_raw_parts_mut((prog_data_ptr) as *mut u8, encoded.len());
-            // let data_ptr = account_info.data.borrow_mut().as_mut_ptr();
-            // let data = from_raw_parts_mut(data_ptr, encoded.len());
-            // data.copy_from_slice(encoded.as_slice());
+            data.copy_from_slice(encoded.as_slice());
         };
 
         //let encoded = self.pack();
@@ -159,15 +163,10 @@ impl ProgState {
     }
 
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let first_0 = input.iter().position(|&r| r == 0);
-
-        let inp_trimmed = if let Some(first_0_ind) = first_0 {
-            &input[0..first_0_ind]
-        } else {
-            input
-        };
-        Self::try_from_slice(input).map_err(|e| {
-            msg!("MALLOC LOG: Error parsing state data {:?}", e);
+        let size = byteorder::BigEndian::read_u32(&input[0..4]) as usize;
+        let body = &input[4..(4+size)];
+        Self::try_from_slice(body).map_err(|e| {
+            msg!("MALLOC LOG: Error parsing state data {:?}. Length of inp is {}", e, size);
             ProgramError::InvalidInstructionData
         })
     }
@@ -175,7 +174,14 @@ impl ProgState {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        self.try_to_vec().unwrap()
+        let mut buff = self.try_to_vec().unwrap();
+        let mut size  = [0; 4];
+        byteorder::BigEndian::write_u32(&mut size, buff.len() as u32);
+        buff.insert(0, size[0]);
+        buff.insert(1, size[1]);
+        buff.insert(2, size[2]);
+        buff.insert(3, size[3]);
+        buff
     }
 }
 

@@ -136,7 +136,8 @@ async function doGeneralInstrSingleton(instruction: TransactionInstruction) {
 
 async function initMallocData(malloc_class: Malloc) {
   const inst = malloc_class.initState()
-  await sendGeneralInstruction([inst], [data_account]);
+  const tx = await sendGeneralInstruction([inst], [data_account]);
+  console.log("Init TX", tx)
 }
 
 async function initAccounts(): Promise<Connection> {

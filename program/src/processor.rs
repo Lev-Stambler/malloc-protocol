@@ -287,7 +287,8 @@ fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgStateResult
     if let Ok(_) = ProgState::unpack(current_contents.as_ref()) {
         return Err(ProgramError::InvalidInstructionData);
     }
-    let new_state = ProgState::new();
+    let mut new_state = ProgState::new();
+    new_state.nonce = 12;
     msg!("MALLOC LOG: init malloc done!");
     Ok(new_state)
 }

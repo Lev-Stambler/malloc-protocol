@@ -13,6 +13,7 @@ export function fakeMallocState(): MallocState  {
     wrapped_calls: {},
     baskets: {},
     supported_wrapped_call_inputs: {},
+    nonce: 1
   }
 
   inputs.forEach(inputName => {
