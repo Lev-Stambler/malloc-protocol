@@ -6,6 +6,7 @@ import {
   BarsOutlined,
   PlusOutlined,
   DollarOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { AppBar } from "../AppBar";
 
@@ -40,16 +41,21 @@ export const AppLayout = (props: any) => {
             <Menu.Item key="4">Totally sick loopty-loop</Menu.Item>
             <Menu.Item key="5">top-secret portfolio</Menu.Item>
           </SubMenu>
+          <Menu.Item key="2" icon={<InfoCircleOutlined/>}>
+            <Link to="/ultralitepaper">
+              Ultralitepaper
+            </Link>
+          </Menu.Item>
         </Menu>
       </Sider>
       <Layout>
         <Header style={{ padding: '0 0 0 16px' }} >
-          <div className="h-full w-full">
+          <div className="w-full h-full">
             <AppBar />
           </div>
         </Header>
         <Content style={{ margin: '0 16px' }}>
-          <div className="h-full w-full">
+          <div className="w-full h-full">
             {props.children}
           </div>
         </Content>
