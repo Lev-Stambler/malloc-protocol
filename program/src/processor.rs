@@ -16,16 +16,23 @@ use std::{borrow::Borrow, str::from_utf8};
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
+<<<<<<< HEAD
+
+fn process_register_call<'a, 'b>(
+    sender: &Pubkey,
+    prog_state: &mut ProgState,
+=======
 type ProgStateResult = std::result::Result<ProgState, ProgramError>;
 
 fn process_register_call<'a, 'b>(
     sender: &Pubkey,
     mut prog_state: ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
     associated_accounts_infos: Vec<AccountInfo>,
-) -> ProgStateResult {
+) -> ProgramResult {
     if let Some(_entry) = prog_state
         .wrapped_calls
         .iter()
@@ -101,15 +108,19 @@ fn process_register_call<'a, 'b>(
         wcall: updated_wcall,
     });
     msg!("MALLOC LOG: registered call '{}'", name);
-    Ok(prog_state)
+    Ok(())
 }
 
 fn process_new_supported_wrapped_call_input<'a>(
+<<<<<<< HEAD
+    prog_state: &mut ProgState,
+=======
     mut prog_state: ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
-) -> ProgStateResult {
+) -> ProgramResult {
     if let None = prog_state
         .supported_wrapped_call_inputs
         .iter()
@@ -126,11 +137,15 @@ fn process_new_supported_wrapped_call_input<'a>(
         return Err(ProgramError::InvalidInstructionData);
     }
     msg!("MALLOC LOG: registered new call input '{}'", input_name);
-    Ok(prog_state)
+    Ok(())
 }
 
 fn process_enact_basket<'a>(
+<<<<<<< HEAD
+    prog_state: &mut ProgState,
+=======
     prog_state: &ProgState,
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     basket_name: String,
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
@@ -140,11 +155,18 @@ fn process_enact_basket<'a>(
     rent_amount: u64,
 ) -> EnactBasketResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
+<<<<<<< HEAD
+    let basket = prog_state
+        .baskets
+=======
     let basket = &prog_state.baskets
+>>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
         .iter()
         .find(|entry| basket_name == entry.name)
         .ok_or(ProgramError::Custom(144))?
-        .basket;
+        .basket
+        .clone();
+
     let mut start_idx: usize = _start_idx;
 
     let malloc_input = &remaining_accounts[start_idx];
@@ -205,12 +227,12 @@ fn process_enact_basket<'a>(
         invoke(&approve_inst, accounts_for_approve).map_err(|e| ProgramError::Custom(11))?;
         msg!("Approved is invoked");
 
-        let wcall = &prog_state
+        let wcall = prog_state
             .wrapped_calls
             .iter()
             .find(|entry| call_name == entry.name)
             .ok_or(ProgramError::InvalidInstructionData)?
-            .wcall;
+            .wcall.clone();
 
         match wcall {
             WCall::Simple {
@@ -258,19 +280,16 @@ fn process_enact_basket<'a>(
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
                 crate::wcall_handlers::enact_wcall(&wcall, &inp_accounts, amount_approve)?;
-                let recurse_ret = {
-                    process_enact_basket(
-                        prog_state,
-                        callback_basket.to_owned(),
-                        remaining_accounts,
-                        start_idx,
-                        token_program_id,
-                        spl_account.to_owned(),
-                        caller_account.to_owned(),
-                        rent_amount,
-                    )
-                };
-                let new_start_idx = recurse_ret?;
+                let new_start_idx = process_enact_basket(
+                    prog_state,
+                    callback_basket.to_owned(),
+                    remaining_accounts,
+                    start_idx,
+                    token_program_id,
+                    spl_account.to_owned(),
+                    caller_account.to_owned(),
+                    rent_amount,
+                )?;
                 // TODO: ??? no clue why tbh
                 // Account for off by 1 created by double counting the output
                 start_idx = new_start_idx - 1;
@@ -282,15 +301,19 @@ fn process_enact_basket<'a>(
     Ok(start_idx)
 }
 
-fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgStateResult {
-    let current_contents = program_info.try_borrow_data()?;
-    if let Ok(_) = ProgState::unpack(current_contents.as_ref()) {
+fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
+    if let Ok(_) = ProgState::unpack(&program_info.data.borrow()) {
         return Err(ProgramError::InvalidInstructionData);
     }
-    let mut new_state = ProgState::new();
-    new_state.nonce = 12;
-    msg!("MALLOC LOG: init malloc done!");
-    Ok(new_state)
+    let new_state = ProgState::new();
+    ProgState::pack(&new_state, &mut program_info.data.borrow_mut())?;
+    // msg!("MALLOC LOG: init malloc done: {:02X?}!", &program_info.data.borrow()[0..20]);
+    ProgState::unpack(&program_info.data.borrow()).map_err(|e| {
+        msg!("MALLOC LOG: post-init check failed: {}", e);
+        e
+    })?;
+    
+    Ok(())
 }
 
 fn process_create_basket<'a>(
@@ -340,8 +363,8 @@ pub fn process_instruction<'a>(
     let instruction = ProgInstruction::unpack(input)?;
     if let ProgInstruction::InitMalloc {} = instruction {
         //msg!("MALLOC LOG: InitMalloc");
-        let prog_state = process_init_malloc(program_info)?;
-        return prog_state.write_new_prog_state(program_info);
+        process_init_malloc(program_info)?;
+        return Ok(());
     }
 
     let mut prog_state = ProgState::unpack(&program_info.try_borrow_data()?.as_ref())?;
@@ -350,17 +373,18 @@ pub fn process_instruction<'a>(
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    let new_state = match instruction {
+    match instruction {
         ProgInstruction::RegisterCall {
             call_name: name,
             wcall_enum: wcall,
         } => {
             // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
+            // let prog_data_ptr = (&program_info.data.borrow()).as_ref().as_ptr() as *mut u8;
             let associated_accounts = &accounts[2..];
             process_register_call(
                 account_info.owner,
-                prog_state,
+                &mut prog_state,
                 program_info,
                 name,
                 wcall,
@@ -379,7 +403,7 @@ pub fn process_instruction<'a>(
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
             ]);
-            let _ = process_enact_basket(
+            process_enact_basket(
                 &mut prog_state,
                 basket_name,
                 &accounts[3..],
@@ -389,26 +413,25 @@ pub fn process_instruction<'a>(
                 account_info.to_owned(),
                 rent_given,
             )?;
-            prog_state
         }
-        ProgInstruction::InitMalloc {} => prog_state,
+        ProgInstruction::InitMalloc {} => (),
         ProgInstruction::CreateBasket {
             name,
             calls,
             splits,
             input,
-        } => process_create_basket(prog_state, program_info, name, calls, splits, input)?,
+        } => process_create_basket(&mut prog_state, program_info, name, calls, splits, input)?,
         ProgInstruction::NewSupportedWCallInput {
             input_name,
             input_address,
         } => process_new_supported_wrapped_call_input(
-            prog_state,
+            &mut prog_state,
             program_info,
             input_name,
             input_address,
         )?,
     };
-    new_state.write_new_prog_state(program_info)?;
+    ProgState::pack(&prog_state, &mut program_info.data.borrow_mut())?;
     Ok(())
 }
 

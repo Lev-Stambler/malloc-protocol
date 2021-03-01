@@ -81,7 +81,6 @@ async function initMallocData(connection: Connection, data_account: Account) {
         commitment: "singleGossip",
       }
     );
-    console.log("Initialized the data in data_account");
     const data_account_info = await connection.getAccountInfo(
       data_account.publicKey
     );
