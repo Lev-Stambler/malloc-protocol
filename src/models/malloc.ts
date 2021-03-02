@@ -237,12 +237,23 @@ export class RegisterCallInstructionData extends Assignable {
     call_name: string,
     wcall: WCallSimple<PublicKey> | WCallChained<PublicKey>
   ): RegisterCallInstructionData {
-    const call = isWCallChained(wcall)
+    //@ts-ignore
+    if (wcall.Chained) {
+      //@ts-ignore
+      wcall.Chained.wcall = serializePubkey(wcall.Chained.wcall);
+    } else {
+      //@ts-ignore
+      wcall.Simple.wcall = serializePubkey(wcall.Simple.wcall);
+    }
+    //@ts-ignore
+    const call = wcall.Chained
       ? {
-          Chained: new WCallChainedBorsh({ ...wcall }),
+          //@ts-ignore
+          Chained: new WCallChainedBorsh({ ...wcall.Chained }),
         }
       : {
-          Simple: new WCallSimpleBorsh({ ...wcall }),
+          //@ts-ignore
+          Simple: new WCallSimpleBorsh({ ...wcall.Simple }),
         };
     return new RegisterCallInstructionData({
       call_name,
@@ -514,7 +525,7 @@ export class WCallEntryBorsh extends Assignable {
   //@ts-ignore
   name: string;
   //@ts-ignore
-  call: WCallBorsh;
+  wcall: WCallBorsh;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -525,7 +536,7 @@ export class WCallEntryBorsh extends Assignable {
   }
 
   into() {
-    return [this.name, this.call.into()];
+    return [this.name, this.wcall.into()];
   }
 }
 
@@ -547,13 +558,9 @@ export class MallocStateBorsh extends Assignable {
     let sizeBuff = bytes.slice(0, 4);
     let size = Buffer.from(sizeBuff).readUIntBE(0, 4);
     let start = 4;
-    let buf = Buffer.from(bytes.slice(start, start + size))
+    let buf = Buffer.from(bytes.slice(start, start + size));
 
-    return deserialize(
-      SCHEMA,
-      MallocStateBorsh,
-      buf
-    );
+    return deserialize(SCHEMA, MallocStateBorsh, buf);
   }
 
   into(): MallocState {
@@ -565,7 +572,7 @@ export class MallocStateBorsh extends Assignable {
     };
 
     this.wrapped_calls.forEach((entry) => {
-      state.wrapped_calls[entry.name] = entry.call.into();
+      state.wrapped_calls[entry.name] = entry.wcall.into();
     });
 
     this.baskets.forEach((entry) => {
@@ -616,7 +623,7 @@ export const SCHEMA = new Map<Function, any>([
         ["name", "string"],
         ["calls", ["string"]],
         ["splits", ["u64"]],
-        ["input", ["u8"]],
+        ["input", "string"],
       ],
     },
   ],
@@ -663,7 +670,7 @@ export const SCHEMA = new Map<Function, any>([
       kind: "struct",
       fields: [
         ["name", "string"],
-        ["basket", [BasketBorsh]],
+        ["basket", BasketBorsh],
       ],
     },
   ],
@@ -695,13 +702,23 @@ export const SCHEMA = new Map<Function, any>([
     {
       kind: "struct",
       fields: [
-        ["wcall", ["u8"]],
+        ["wcall", [32]],
         ["callback_basket", "string"],
         ["input", "string"],
         ["output", "string"],
-        ["associated_accounts", [["u8"]]],
-        ["associated_account_is_writable", "u8"],
-        ["associated_account_is_signer", "u8"],
+        ["associated_accounts", [[32]]],
+        ["associated_account_is_writable", ["u8"]],
+        ["associated_account_is_signer", ["u8"]],
+      ],
+    },
+  ],
+  [
+    WCallEntryBorsh,
+    {
+      kind: "struct",
+      fields: [
+        ["name", "string"],
+        ["wcall", WCallBorsh],
       ],
     },
   ],
@@ -710,11 +727,11 @@ export const SCHEMA = new Map<Function, any>([
     {
       kind: "struct",
       fields: [
-        ["wcall", ["u8"]],
+        ["wcall", [32]],
         ["input", "string"],
-        ["associated_accounts", [["u8"]]],
-        ["associated_account_is_writable", "u8"],
-        ["associated_account_is_signer", "u8"],
+        ["associated_accounts", [[32]]],
+        ["associated_account_is_writable", ["u8"]],
+        ["associated_account_is_signer", ["u8"]],
       ],
     },
   ],
@@ -725,7 +742,7 @@ export const SCHEMA = new Map<Function, any>([
       fields: [
         ["calls", ["string"]],
         ["splits", ["u64"]],
-        ["creator", ["u8"]],
+        ["creator", [32]],
         ["input", "string"],
       ],
     },

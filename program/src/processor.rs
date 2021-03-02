@@ -16,18 +16,11 @@ use std::{borrow::Borrow, str::from_utf8};
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
-<<<<<<< HEAD
-
-fn process_register_call<'a, 'b>(
-    sender: &Pubkey,
-    prog_state: &mut ProgState,
-=======
 type ProgStateResult = std::result::Result<ProgState, ProgramError>;
 
 fn process_register_call<'a, 'b>(
     sender: &Pubkey,
     mut prog_state: ProgState,
->>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
@@ -112,11 +105,7 @@ fn process_register_call<'a, 'b>(
 }
 
 fn process_new_supported_wrapped_call_input<'a>(
-<<<<<<< HEAD
-    prog_state: &mut ProgState,
-=======
     mut prog_state: ProgState,
->>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
@@ -141,11 +130,7 @@ fn process_new_supported_wrapped_call_input<'a>(
 }
 
 fn process_enact_basket<'a>(
-<<<<<<< HEAD
-    prog_state: &mut ProgState,
-=======
     prog_state: &ProgState,
->>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
     basket_name: String,
     remaining_accounts: &'a [AccountInfo<'a>],
     _start_idx: usize,
@@ -155,12 +140,7 @@ fn process_enact_basket<'a>(
     rent_amount: u64,
 ) -> EnactBasketResult {
     msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
-<<<<<<< HEAD
-    let basket = prog_state
-        .baskets
-=======
     let basket = &prog_state.baskets
->>>>>>> 7584d3122125428235f6a19794faa408fbc91be8
         .iter()
         .find(|entry| basket_name == entry.name)
         .ok_or(ProgramError::Custom(144))?

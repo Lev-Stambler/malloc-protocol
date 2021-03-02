@@ -105,6 +105,8 @@ export class Malloc {
   // }
 
   private convertObjToHavePubKey(state: any) {
+    if (!state)
+      return;
     const keys = Object.keys(state);
     for (let i = 0; i < keys.length; i++) {
       if (
@@ -124,7 +126,6 @@ export class Malloc {
     // const buf = trimBuffer(data);
     const state = MallocStateBorsh.decode(data).into();
     this.convertObjToHavePubKey(state);
-    console.log(state);
     return state;
   }
 
@@ -380,7 +381,7 @@ export class Malloc {
     ephemeralAccounts: Account[];
     initEphemeralAccountInstsructions: TransactionInstruction[];
   } | null {
-    if (!this.checkCallGraph(basket)) {
+    if (!this.checkCallGraph(basket) && !this.userPubKeyAlt) {
       alert("invalid call graph!");
       return null;
     }
@@ -668,13 +669,13 @@ export class Malloc {
     } else {
       wcall = args.wcall as { Chained: WCallChained<PublicKey> };
       wcall.Chained.wcall = wcall.Chained.wcall;
-      associated_accounts = wcall.Simple.associated_accounts;
+      associated_accounts = wcall.Chained.associated_accounts;
       associated_account_is_writable =
-        wcall.Simple.associated_account_is_writable;
-      associated_account_is_signer = wcall.Simple.associated_account_is_signer;
-      wcall.Simple.associated_accounts = [];
-      wcall.Simple.associated_account_is_writable = [];
-      wcall.Simple.associated_account_is_signer = [];
+        wcall.Chained.associated_account_is_writable;
+      associated_account_is_signer = wcall.Chained.associated_account_is_signer;
+      wcall.Chained.associated_accounts = [];
+      wcall.Chained.associated_account_is_writable = [];
+      wcall.Chained.associated_account_is_signer = [];
     }
     let associated_account_metas: AccountMeta[] = associated_accounts.map(
       (key, i) => {

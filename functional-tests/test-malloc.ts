@@ -246,6 +246,7 @@ describe("Run a standard set of Malloc tests", async function () {
       })
     );
     await doGeneralInstrSingleton(instsDummy[0]);
+    console.log("Call registered call!")
     await malloc_class.refresh();
     await doGeneralInstrSingleton(
       malloc_class.registerCall({
@@ -264,6 +265,7 @@ describe("Run a standard set of Malloc tests", async function () {
         },
       })
     );
+    console.log("Chained Call registered")
     await malloc_class.refresh();
     await doGeneralInstrSingleton(
       malloc_class.createBasket({
