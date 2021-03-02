@@ -11,7 +11,6 @@ use solana_program::{
     program_option::COption,
     pubkey::Pubkey,
     sysvar,
-    entrypoint::ProgramResult,
 };
 use std::{convert::TryInto, hash::Hash};
 use std::{mem::size_of, slice::from_raw_parts_mut};
@@ -49,7 +48,7 @@ pub enum WCall {
     },
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Default, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Default)]
 pub struct Basket {
     /// The calls that the basket makes
     pub calls: Vec<WCallName>,
@@ -147,28 +146,42 @@ impl ProgState {
         }
     }
 
-    // pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
-    //     let encoded = self.pack();
-    //     (*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
-    //     Ok(())
-    // }
+    pub fn write_new_prog_state<'a>(&self, account_info: &'a AccountInfo<'a>) -> Result<(), ProgramError> {
+        // TODO change back and try
+        unsafe {
+            let encoded = self.pack();
+            // msg!("Encoded size is {:?}", encoded);
+            msg!("Encoded 1 is {}", encoded[0]);
+            let prog_data_ptr = (account_info.data.borrow()).as_ref().as_ptr() as *mut u8;
+            let data = from_raw_parts_mut((prog_data_ptr) as *mut u8, encoded.len());
+            data.copy_from_slice(encoded.as_slice());
+        };
+
+        //let encoded = self.pack();
+        //(*account_info.try_borrow_mut_data()?).copy_from_slice(encoded.as_slice());
+        Ok(())
+    }
 
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let len = usize::from_le_bytes(input[0..8].try_into().map_err(|e| ProgramError::InvalidInstructionData)?);
-        Self::try_from_slice(&input[8..8 + len]).map_err(|e| {
-            msg!("MALLOC LOG: Error parsing state data {:?}", e);
+        let size = byteorder::BigEndian::read_u32(&input[0..4]) as usize;
+        let body = &input[4..(4+size)];
+        Self::try_from_slice(body).map_err(|e| {
+            msg!("MALLOC LOG: Error parsing state data {:?}. Length of inp is {}", e, size);
             ProgramError::InvalidInstructionData
         })
     }
 
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
-    pub fn pack(&self, dst: &mut [u8]) -> ProgramResult {
+    pub fn pack(&self) -> Vec<u8> {
         // TODO: better error handling?
-        let encoded = self.try_to_vec()?;
-        msg!("MALLOC LOG: encoded state: {:02X?}", encoded);
-        dst[0..8].copy_from_slice(&encoded.len().to_le_bytes());
-        dst[8..encoded.len()+8].copy_from_slice(encoded.as_slice());
-        Ok(())
+        let mut buff = self.try_to_vec().unwrap();
+        let mut size  = [0; 4];
+        byteorder::BigEndian::write_u32(&mut size, buff.len() as u32);
+        buff.insert(0, size[0]);
+        buff.insert(1, size[1]);
+        buff.insert(2, size[2]);
+        buff.insert(3, size[3]);
+        buff
     }
 }
 
@@ -177,8 +190,7 @@ impl ProgInstruction {
     /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         msg!("Number of bytes on input {}", input.len());
-        let len = usize::from_le_bytes(input[0..8].try_into().map_err(|e| ProgramError::InvalidInstructionData)?);
-        Self::try_from_slice(&input[8..]).map_err(|e| {
+        Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
