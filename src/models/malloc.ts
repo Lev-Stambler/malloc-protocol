@@ -333,6 +333,7 @@ export class NewSupportedWCallInputInstructionData extends Assignable {
     input_name: string,
     input_address: PublicKey
   ): NewSupportedWCallInputInstructionData {
+    console.log("PUBKEY OF", input_address.toBase58(), serializePubkey(input_address))
     return new NewSupportedWCallInputInstructionData({
       input_name,
       input_address: serializePubkey(input_address),

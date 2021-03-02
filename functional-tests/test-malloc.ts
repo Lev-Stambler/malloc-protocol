@@ -302,6 +302,7 @@ describe("Run a standard set of Malloc tests", async function () {
     console.log("WSol in funded with sol:", fundedWSolInfo.amount.toNumber());
 
     const basketNode = malloc_class.getCallGraph("Just a simp");
+    let s = WRAPPED_SOL_MINT
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,

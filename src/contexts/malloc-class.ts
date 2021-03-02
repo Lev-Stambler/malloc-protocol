@@ -506,7 +506,6 @@ export class Malloc {
     if (!this.state) {
       throw new Error("state not initialized!");
     }
-    console.log(this.state.baskets, basketName);
     const basket = this.state.baskets[basketName];
     return {
       name: basketName,
