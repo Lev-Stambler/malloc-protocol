@@ -149,9 +149,9 @@ fn process_enact_basket<'a>(
 
     let malloc_input = &remaining_accounts[start_idx];
     start_idx += 1;
-    let malloc_data = malloc_input.try_borrow_data()?;
     let malloc_spl_account: spl_token::state::Account =
-        Pack::unpack(malloc_data.as_ref())?;
+        Pack::unpack(&malloc_input.try_borrow_data()?)?;
+    
     let mut amount_input = malloc_spl_account.amount;
     // Deal with unknown rent sizes for the account
     if let COption::Some(rent_res) = malloc_spl_account.is_native {
@@ -167,7 +167,6 @@ fn process_enact_basket<'a>(
         start_idx,
         remaining_accounts.len()
     );
-    let spl_ref = &spl_account;
     for i in 0..(&basket.calls).len() {
         let call_name = basket.calls[i].clone();
         let split_amount = basket.splits[i];
@@ -199,10 +198,13 @@ fn process_enact_basket<'a>(
         let accounts_for_approve = &[
             spl_account.to_owned(),
             malloc_input.to_owned(),
-            split_account,
+            split_account.to_owned(),
             caller_account.to_owned(),
         ];
-        invoke(&approve_inst, accounts_for_approve).map_err(|e| ProgramError::Custom(11))?;
+        invoke(&approve_inst, accounts_for_approve).map_err(|e| {
+            msg!("MALLOC LOG: failed to invoke: {}", e);
+            ProgramError::Custom(11)
+        })?;
         msg!("Approved is invoked");
 
         let wcall = &prog_state
@@ -372,9 +374,7 @@ pub fn process_instruction<'a>(
             rent_given,
         } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
-            let spl_account: &'a AccountInfo<'a> = account_info_iter
-                .next()
-                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            let spl_account: &'a AccountInfo<'a> = next_account_info(account_info_iter)?;
             let spl_token_prog = Pubkey::new(&vec![
                 6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
                 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,

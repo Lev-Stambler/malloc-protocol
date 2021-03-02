@@ -150,15 +150,10 @@ impl ProgState {
     /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self, dst: &mut [u8]) -> ProgramResult {
         // TODO: better error handling?
-        let mut buff = self.try_to_vec()?;
-        let mut size  = [0; 4];
-        byteorder::BigEndian::write_u32(&mut size, buff.len() as u32);
-        buff.insert(0, size[0]);
-        buff.insert(1, size[1]);
-        buff.insert(2, size[2]);
-        buff.insert(3, size[3]);
-        
-        dst[0..buff.len()].copy_from_slice(buff.as_slice());
+        let buf = self.try_to_vec()?;
+        let len = (buf.len() as u32).to_be_bytes();
+        dst[0..4].copy_from_slice(&len);
+        dst[4..buf.len() + 4].copy_from_slice(buf.as_slice());
         Ok(())
     }
 }

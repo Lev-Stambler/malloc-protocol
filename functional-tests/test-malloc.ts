@@ -15,7 +15,7 @@ const progKey = require("../src/config/program_id.json").programId;
 const progId = new PublicKey(progKey);
 import "mocha";
 import { serializePubkey, trimBuffer } from "../src/utils/utils";
-import { MallocState, PubKeyRep, WCallSimple } from "../src/models/malloc";
+import { MallocState, PubKeyRep, WCallSimple, MallocStateBorsh} from "../src/models/malloc";
 import { registerTokSwapWCall } from "../src/actions/token-swap";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
@@ -39,7 +39,7 @@ let connection: Connection;
 function parseAccountState(data: Buffer): MallocState {
   const buf = trimBuffer(data);
   const bufString = buf.toString();
-  const state = JSON.parse(bufString);
+  const state = MallocStateBorsh.decode(data);
 
   return state;
 }
@@ -246,8 +246,8 @@ describe("Run a standard set of Malloc tests", async function () {
       })
     );
     await doGeneralInstrSingleton(instsDummy[0]);
-    console.log("Call registered call!")
     await malloc_class.refresh();
+    console.log("Call registered call!")
     await doGeneralInstrSingleton(
       malloc_class.registerCall({
         call_name: "takes money from one account to another chained",
