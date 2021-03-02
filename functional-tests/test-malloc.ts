@@ -1,4 +1,5 @@
 //@ts-ignore
+import fs from 'fs'
 import {
   Account,
   PublicKey,
@@ -15,7 +16,12 @@ const progKey = require("../src/config/program_id.json").programId;
 const progId = new PublicKey(progKey);
 import "mocha";
 import { serializePubkey, trimBuffer } from "../src/utils/utils";
-import { MallocState, PubKeyRep, WCallSimple, MallocStateBorsh} from "../src/models/malloc";
+import {
+  MallocState,
+  PubKeyRep,
+  WCallSimple,
+  MallocStateBorsh,
+} from "../src/models/malloc";
 import { registerTokSwapWCall } from "../src/actions/token-swap";
 // @ts-ignore
 import { Malloc } from "../src/contexts/malloc-class";
@@ -26,6 +32,7 @@ import { Token, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { TokenSwap } from "@solana/spl-token-swap";
 import { serialize } from "borsh";
 import BN from "bn.js";
+import { fstat } from "fs";
 
 const SolanaNet = "https://devnet.solana.com";
 const SIMPLE_PASS_THROUGH_WCALL = new PublicKey(
@@ -135,9 +142,9 @@ async function doGeneralInstrSingleton(instruction: TransactionInstruction) {
 }
 
 async function initMallocData(malloc_class: Malloc) {
-  const inst = malloc_class.initState()
+  const inst = malloc_class.initState();
   const tx = await sendGeneralInstruction([inst], [data_account]);
-  console.log("Init TX", tx)
+  console.log("Init TX", tx);
 }
 
 async function initAccounts(): Promise<Connection> {
@@ -178,7 +185,7 @@ describe("Run a standard set of Malloc tests", async function () {
     malloc_class.setUserPubKeyAlt(account.publicKey);
 
     await initMallocData(malloc_class);
-    const data = await connection.getAccountInfo(data_account.publicKey)
+    const data = await connection.getAccountInfo(data_account.publicKey);
 
     let insts = [];
     malloc_class.registerNewSupportedWCall(insts, {
@@ -186,10 +193,10 @@ describe("Run a standard set of Malloc tests", async function () {
       input_address: WRAPPED_SOL_MINT,
     });
     await doGeneralInstrSingleton(insts[0]);
-    console.log("WSol registered")
+    console.log("WSol registered");
   });
 
-  it("fails if already registered", async () => {
+  xit("fails if already registered", async () => {
     try {
       await initMallocData(malloc_class);
       assert(false);
@@ -247,7 +254,7 @@ describe("Run a standard set of Malloc tests", async function () {
     );
     await doGeneralInstrSingleton(instsDummy[0]);
     await malloc_class.refresh();
-    console.log("Call registered call!")
+    console.log("Call registered call!");
     await doGeneralInstrSingleton(
       malloc_class.registerCall({
         call_name: "takes money from one account to another chained",
@@ -260,12 +267,12 @@ describe("Run a standard set of Malloc tests", async function () {
             callback_basket: "Just a simp",
             associated_accounts: [],
             associated_account_is_signer: [],
-            associated_account_is_writable: []
+            associated_account_is_writable: [],
           },
         },
       })
     );
-    console.log("Chained Call registered")
+    console.log("Chained Call registered");
     await malloc_class.refresh();
     await doGeneralInstrSingleton(
       malloc_class.createBasket({
@@ -302,7 +309,7 @@ describe("Run a standard set of Malloc tests", async function () {
     console.log("WSol in funded with sol:", fundedWSolInfo.amount.toNumber());
 
     const basketNode = malloc_class.getCallGraph("Just a simp");
-    let s = WRAPPED_SOL_MINT
+    let s = WRAPPED_SOL_MINT;
     const accounts = malloc_class.invokeCallGraph(
       insts,
       basketNode,
@@ -354,8 +361,44 @@ describe("Run a standard set of Malloc tests", async function () {
       [instsChained[instsChained.length - 1]],
       accountsChained
     );
+    await malloc_class.refresh()
     console.log("CHAINED TX for first part", txRetChained);
+    console.log("writing data account")
+    fs.writeFileSync('./src/config/data_account.json', JSON.stringify({
+      "data_account_address": data_account.publicKey.toBase58()
+    }))
   });
+
+  // https://explorer.solana.com/tx/5YS4BPaJEYFNS1wY2txwTWkLyNZfmVyH2jtLed9GD8aXpri7DgSTbECDtwVoGZughZGJHsryBLDAWjcHus61vLR8?cluster=devnet
+  // async function airDropUSDC(
+  //   mint: PublicKey,
+  //   to: PublicKey,
+  //   mintAuth: Account
+  // ) {
+  //   await sendGeneralInstruction([
+  //     new TransactionInstruction({
+  //       programId: TOKEN_PROGRAM_ID,
+  //       keys: [
+  //         {
+  //           pubkey: mint,
+  //           isWritable: true,
+  //           isSigner: false,
+  //         },
+  //         {
+  //           pubkey: to,
+  //           isSigner: false,
+  //           isWritable: true,
+  //         },
+  //         {
+  //           pubkey: mintAuth.publicKey,
+  //           isSigner: true,
+  //           isWritable: false,
+  //         },
+  //       ],
+  //     }),
+  //     [mintAuth],
+  //   ]);
+  // }
 
   xit("Try token swap out", async () => {
     let insts: TransactionInstruction[] = [];
@@ -392,11 +435,11 @@ describe("Run a standard set of Malloc tests", async function () {
     malloc_class.registerNewSupportedWCall(insts, {
       input_name: "TOK A",
       input_address: TOKEN_A_MINT,
-    }),
-      await sendGeneralInstruction([
-        registerTokSwapWCall(malloc_class, wcallName, "TOK A", destAccount),
-      ]);
-    console.log("Registered WCall");
+    });
+    await sendGeneralInstruction(insts);
+    await sendGeneralInstruction([
+      registerTokSwapWCall(malloc_class, wcallName, "TOK A", destAccount),
+    ]);
     await malloc_class.refresh();
     assert(
       (malloc_class.state?.wrapped_calls[wcallName] as any).Simple

@@ -560,8 +560,11 @@ export class MallocStateBorsh extends Assignable {
     let size = Buffer.from(sizeBuff).readUIntBE(0, 4);
     let start = 4;
     let buf = Buffer.from(bytes.slice(start, start + size));
+    console.log(size, buf)
 
-    return deserialize(SCHEMA, MallocStateBorsh, buf);
+    const dec = deserialize(SCHEMA, MallocStateBorsh, buf);
+    console.log(dec)
+    return dec
   }
 
   into(): MallocState {
@@ -572,15 +575,15 @@ export class MallocStateBorsh extends Assignable {
       nonce: 0,
     };
 
-    this.wrapped_calls.forEach((entry) => {
+    (this.wrapped_calls).forEach((entry) => {
       state.wrapped_calls[entry.name] = entry.wcall.into();
     });
 
-    this.baskets.forEach((entry) => {
+    (this.baskets).forEach((entry) => {
       state.baskets[entry.name] = entry.basket.into();
     });
 
-    this.supported_wrapped_call_inputs.forEach((entry) => {
+    (this.supported_wrapped_call_inputs).forEach((entry) => {
       state.supported_wrapped_call_inputs[entry.name] = new PublicKey(
         entry.input
       );

@@ -39,7 +39,7 @@ export function MallocProvider({ children = null as any }) {
   const malloc = useMemo(
     () => {
       console.log("memo")
-      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext, true)
+      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext)
     },
     [connection, wallet, accountsContext]
   );
@@ -47,9 +47,11 @@ export function MallocProvider({ children = null as any }) {
 
   useEffect(() => {
     const updateMalloc = async () => {
+      console.log("Refreshing malloc")
       await malloc.refresh();
     };
     const interval = window.setInterval(updateMalloc, REFRESH_INTERVAL)
+    updateMalloc()
     return () => {
       window.clearInterval(interval);
     };

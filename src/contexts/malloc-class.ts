@@ -156,6 +156,7 @@ export class Malloc {
       };
     } else {
       this.state = this.parseAccountState(accountInfo.data);
+      console.log("New state", this.state)
     }
   }
 
