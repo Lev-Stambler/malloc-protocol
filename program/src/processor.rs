@@ -12,7 +12,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack},
     pubkey::Pubkey,
 };
-use std::{borrow::Borrow, str::from_utf8};
+use std::{borrow::{Borrow, BorrowMut}, str::from_utf8};
 
 const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 type EnactBasketResult = std::result::Result<usize, ProgramError>;
@@ -341,7 +341,7 @@ pub fn process_instruction<'a>(
     if let ProgInstruction::InitMalloc {} = instruction {
         //msg!("MALLOC LOG: InitMalloc");
         let prog_state = process_init_malloc(program_info)?;
-        return prog_state.write_new_prog_state(program_info);
+        return ProgState::pack(&prog_state, &mut program_info.try_borrow_mut_data()?);
     }
 
     let mut prog_state = ProgState::unpack(&program_info.try_borrow_data()?.as_ref())?;
@@ -408,7 +408,7 @@ pub fn process_instruction<'a>(
             input_address,
         )?,
     };
-    new_state.write_new_prog_state(program_info)?;
+    ProgState::pack(&new_state, &mut program_info.try_borrow_mut_data()?)?;
     Ok(())
 }
 
