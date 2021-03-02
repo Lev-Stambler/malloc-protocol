@@ -20,7 +20,7 @@ type ProgStateResult = std::result::Result<ProgState, ProgramError>;
 
 fn process_register_call<'a, 'b>(
     sender: &Pubkey,
-    mut prog_state: ProgState,
+    prog_state: &mut ProgState,
     program_info: &'a AccountInfo<'a>,
     name: String,
     wcall: WCall,
@@ -105,7 +105,7 @@ fn process_register_call<'a, 'b>(
 }
 
 fn process_new_supported_wrapped_call_input<'a>(
-    mut prog_state: ProgState,
+    mut prog_state: &mut ProgState,
     program_info: &'a AccountInfo<'a>,
     input_name: String,
     input_address: Pubkey,
@@ -282,13 +282,13 @@ fn process_enact_basket<'a>(
 }
 
 fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
-    if let Ok(_) = ProgState::unpack(&program_info.data.borrow()) {
+    if let Ok(_) = ProgState::unpack(&program_info.try_borrow_data()?) {
         return Err(ProgramError::InvalidInstructionData);
     }
     let new_state = ProgState::new();
     ProgState::pack(&new_state, &mut program_info.data.borrow_mut())?;
     // msg!("MALLOC LOG: init malloc done: {:02X?}!", &program_info.data.borrow()[0..20]);
-    ProgState::unpack(&program_info.data.borrow()).map_err(|e| {
+    ProgState::unpack(&program_info.try_borrow_data()?).map_err(|e| {
         msg!("MALLOC LOG: post-init check failed: {}", e);
         e
     })?;
@@ -297,13 +297,13 @@ fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgramResult {
 }
 
 fn process_create_basket<'a>(
-    mut prog_state: ProgState,
+    mut prog_state: &mut ProgState,
     program_info: &'a AccountInfo<'a>,
     name: String,
     calls: Vec<String>,
     splits: Vec<u64>,
     input: String,
-) -> ProgStateResult {
+) -> ProgramResult {
     // TODO: checking
     msg!("Creating malloc basket");
     let new_basket = Basket::new(calls, splits, Pubkey::default(), input);
@@ -312,7 +312,7 @@ fn process_create_basket<'a>(
         basket: new_basket,
     });
     msg!("MALLOC LOG: created new basket '{}'", name);
-    Ok(prog_state)
+    Ok(())
 }
 
 /// Instruction processor
