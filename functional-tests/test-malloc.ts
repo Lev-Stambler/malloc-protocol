@@ -39,7 +39,7 @@ let connection: Connection;
 function parseAccountState(data: Buffer): MallocState {
   const buf = trimBuffer(data);
   const bufString = buf.toString();
-  const state = MallocStateBorsh.decode(data);
+  const state = MallocStateBorsh.decode(data).into();
 
   return state;
 }
