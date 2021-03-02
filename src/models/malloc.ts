@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Schema as BorshSchema, deserialize, serialize } from "borsh";
 import {
   Account,
@@ -333,7 +334,6 @@ export class NewSupportedWCallInputInstructionData extends Assignable {
     input_name: string,
     input_address: PublicKey
   ): NewSupportedWCallInputInstructionData {
-    console.log("PUBKEY OF", input_address.toBase58(), serializePubkey(input_address))
     return new NewSupportedWCallInputInstructionData({
       input_name,
       input_address: serializePubkey(input_address),
@@ -357,19 +357,19 @@ export class InitMallocInstructionData extends Assignable {
 
 export class WCallChainedBorsh extends Assignable {
   //@ts-ignore
-  wcall: number[];
-  //@ts-ignore
-  callback_basket: string;
-  //@ts-ignore
-  input: string;
-  //@ts-ignore
-  output: string;
-  //@ts-ignore
-  associated_accounts: number[][];
-  //@ts-ignore
-  associated_account_is_writable: number[];
-  //@ts-ignore
-  associated_account_is_signer: number[];
+  // wcall: number[];
+  // //@ts-ignore
+  // callback_basket: string;
+  // //@ts-ignore
+  // input: string;
+  // //@ts-ignore
+  // output: string;
+  // //@ts-ignore
+  // associated_accounts: number[][];
+  // //@ts-ignore
+  // associated_account_is_writable: number[];
+  // //@ts-ignore
+  // associated_account_is_signer: number[];
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -396,15 +396,15 @@ export class WCallChainedBorsh extends Assignable {
 
 export class WCallSimpleBorsh extends Assignable {
   //@ts-ignore
-  wcall: number[];
-  //@ts-ignore
-  input: string;
-  //@ts-ignore
-  associated_accounts: number[][];
-  //@ts-ignore
-  associated_account_is_writable: number[];
-  //@ts-ignore
-  associated_account_is_signer: number[];
+  // wcall: number[];
+  // //@ts-ignore
+  // input: string;
+  // //@ts-ignore
+  // associated_accounts: number[][];
+  // //@ts-ignore
+  // associated_account_is_writable: number[];
+  // //@ts-ignore
+  // associated_account_is_signer: number[];
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -429,13 +429,13 @@ export class WCallSimpleBorsh extends Assignable {
 
 export class BasketBorsh extends Assignable {
   //@ts-ignore
-  calls: string[];
-  //@ts-ignore
-  splits: BN[];
-  //@ts-ignore
-  creator: number[];
-  //@ts-ignore
-  input: string;
+  // calls: string[];
+  // //@ts-ignore
+  // splits: BN[];
+  // //@ts-ignore
+  // creator: number[];
+  // //@ts-ignore
+  // input: string;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -457,9 +457,9 @@ export class BasketBorsh extends Assignable {
 
 export class BasketEntryBorsh extends Assignable {
   //@ts-ignore
-  name: string;
-  //@ts-ignore
-  basket: BasketBorsh;
+  // name: string;
+  // //@ts-ignore
+  // basket: BasketBorsh;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -476,9 +476,9 @@ export class BasketEntryBorsh extends Assignable {
 
 export class WCallInputBorsh extends Assignable {
   //@ts-ignore
-  name: string;
+  // name: string;
   //@ts-ignore
-  input: number[];
+  // input: number[];
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -495,9 +495,9 @@ export class WCallInputBorsh extends Assignable {
 
 export class WCallBorsh extends Enum {
   //@ts-ignore
-  Chained: WCallChainedBorsh;
-  //@ts-ignore
-  Simple: WCallSimpleBorsh;
+  // Chained: WCallChainedBorsh;
+  // //@ts-ignore
+  // Simple: WCallSimpleBorsh;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -524,9 +524,9 @@ export class WCallBorsh extends Enum {
 
 export class WCallEntryBorsh extends Assignable {
   //@ts-ignore
-  name: string;
-  //@ts-ignore
-  wcall: WCallBorsh;
+  // name: string;
+  // //@ts-ignore
+  // wcall: WCallBorsh;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -543,13 +543,13 @@ export class WCallEntryBorsh extends Assignable {
 
 export class MallocStateBorsh extends Assignable {
   //@ts-ignore
-  wrapped_calls: WCallEntryBorsh[];
+  // wrapped_calls: WCallEntryBorsh[];
   //@ts-ignore
-  baskets: BasketEntryBorsh[];
+  // baskets: BasketEntryBorsh[];
   //@ts-ignore
-  supported_wrapped_call_inputs: WCallInputBorsh[];
+  // supported_wrapped_call_inputs: WCallInputBorsh[];
   //@ts-ignore
-  nonce: number;
+  // nonce: number;
 
   encode(): Uint8Array {
     return serialize(SCHEMA, this);
@@ -560,10 +560,8 @@ export class MallocStateBorsh extends Assignable {
     let size = Buffer.from(sizeBuff).readUIntBE(0, 4);
     let start = 4;
     let buf = Buffer.from(bytes.slice(start, start + size));
-    console.log(size, buf)
 
     const dec = deserialize(SCHEMA, MallocStateBorsh, buf);
-    console.log(dec)
     return dec
   }
 
