@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { Modal, Form, Input, Button, Checkbox, Select, } from "antd";
+import { Modal, Form, Input, Button, Checkbox, Select } from "antd";
 import { serializePubkey } from "../../utils/utils";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMalloc } from "../../contexts/malloc";
@@ -19,26 +19,29 @@ export function RegisterCallModal(props: RegisterCallModalProps) {
 
   const onFinish = useCallback(
     async (value: any) => {
-      console.log(value);
+      console.log(malloc, value);
       const { name, progId, input, associated_accounts } = value.call;
       const wcallPubkey = new PublicKey(progId);
-      const associatedAccountsPubkeys = associated_accounts.map(
+      const associatedAccountsPubkeys = (associated_accounts || []).map(
         (key) => new PublicKey(key)
       );
-      /*
-    const insns: TransactionInstruction[] = [];
-    insns.push(malloc.registerCall({
-      call_name: name,
-      wcall: {
-        Simple: {
-          wcall: serializePubkey(new PublicKey(progId)),
-          input: input,
-          associated_accounts: []
-        }
-      },
-    }));
-    await malloc.sendMallocTransaction(insns, []);
-    */
+      const insns: TransactionInstruction[] = [];
+      insns.push(
+        malloc.registerCall({
+          call_name: name,
+          wcall: {
+            Simple: {
+              wcall: wcallPubkey,
+              input: input,
+              associated_accounts: associatedAccountsPubkeys,
+              // TODO: add in
+              associated_account_is_signer: [],
+              associated_account_is_writable: []
+            },
+          },
+        })
+      );
+      await malloc.sendMallocTransaction(insns, []);
     },
     [malloc]
   );
@@ -94,8 +97,7 @@ export function RegisterCallModal(props: RegisterCallModalProps) {
                       {
                         required: true,
                         whitespace: true,
-                        message:
-                          "Please input the associated account pubkey",
+                        message: "Please input the associated account pubkey",
                       },
                     ]}
                   >

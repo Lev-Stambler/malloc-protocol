@@ -15,7 +15,7 @@ import { EventEmitter } from "./../utils/eventEmitter";
 import { useUserAccounts } from "../hooks/useUserAccounts";
 import { WRAPPED_SOL_MINT, programIds } from "../utils/ids";
 
-const AccountsContext = React.createContext<any>(null);
+export const AccountsContext = React.createContext<any>(null);
 
 const pendingCalls = new Map<string, Promise<ParsedAccountBase>>();
 const genericCache = new Map<string, ParsedAccountBase>();
