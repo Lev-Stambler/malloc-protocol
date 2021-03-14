@@ -10,7 +10,7 @@ use solana_program::{
 
 /// @res the 0th account is the wcall_exec account, 1st for malloc input, 2nd for spl_prog, the
 /// rest for associated_accounts
-pub fn get_accounts_for_enact_basket_wcall<'a>(
+pub fn get_accounts_for_wcall_invocation<'a>(
     accounts_remaining: &[AccountInfo<'a>],
     start_idx: usize,
     numb_associated_accounts: usize,
@@ -28,7 +28,7 @@ pub fn get_accounts_for_enact_basket_wcall<'a>(
     (inp_accounts, (numb_associated_accounts + 2))
 }
 
-pub fn enact_wcall(
+pub fn invoke_wcall(
     program_id: &Pubkey,
     inp_accounts: &[AccountInfo],
     amount: u64,
