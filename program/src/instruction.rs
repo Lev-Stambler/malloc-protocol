@@ -2,20 +2,13 @@
 
 // use crate::error::TokenError;
 use borsh::{BorshDeserialize, BorshSerialize};
-use byteorder::ByteOrder;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, program_option::COption, pubkey::Pubkey, sysvar};
-use std::{convert::TryInto, hash::Hash};
-use std::{mem::size_of, slice::from_raw_parts_mut};
+use byteorder::{BigEndian, ByteOrder};
+use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 type WCallAddr = Pubkey;
 type WCallName = String;
 type WCallInputName = String;
 type BasketName = String;
-
-/// Minimum number of multisignature signers (min N)
-pub const MIN_SIGNERS: usize = 1;
-/// Maximum number of multisignature signers (max N)
-pub const MAX_SIGNERS: usize = 11;
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
 pub enum WCall {
@@ -80,7 +73,7 @@ pub struct ProgState {
     pub baskets: Vec<BasketEntry>,
     /// map from WCallName to input it takes
     pub supported_wrapped_call_inputs: Vec<WCallInputEntry>,
-    pub nonce: u8
+    pub nonce: u8,
 }
 
 /// Instructions supported by the token program.
@@ -98,7 +91,7 @@ pub enum ProgInstruction {
         splits: Vec<u64>,
         input: WCallInputName,
     },
-    ///
+
     /// Accounts expected:
     /// program_info, malloc_input, w[0][0]' executable, w[0][0] split account,
     /// w[0][0] associated accounts, w[0][0] output account if chained, w[0][1] split account
@@ -134,22 +127,24 @@ impl ProgState {
             wrapped_calls: Vec::new(),
             baskets: Vec::new(),
             supported_wrapped_call_inputs: Vec::new(),
-            nonce: 1
+            nonce: 1,
         }
     }
 
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
-        let size = byteorder::BigEndian::read_u32(&input[0..4]) as usize;
-        let body = &input[4..(4+size)];
+        let size = BigEndian::read_u32(&input[0..4]) as usize;
+        let body = &input[4..(4 + size)];
         Self::try_from_slice(body).map_err(|e| {
-            msg!("MALLOC LOG: Error parsing state data {:?}. Length of inp is {}", e, size);
+            msg!(
+                "MALLOC LOG: Error parsing state data {:?}. Length of inp is {}",
+                e,
+                size
+            );
             ProgramError::InvalidInstructionData
         })
     }
 
-    /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
     pub fn pack(&self, dst: &mut [u8]) -> ProgramResult {
-        // TODO: better error handling?
         let buf = self.try_to_vec()?;
         let len = (buf.len() as u32).to_be_bytes();
         dst[0..4].copy_from_slice(&len);
@@ -159,20 +154,12 @@ impl ProgState {
 }
 
 impl ProgInstruction {
-    // TODO: make use of something more efficient than JSON
-    /// Using json packing
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         msg!("Number of bytes on input {}", input.len());
         Self::try_from_slice(input).map_err(|e| {
             msg!("MALLOC LOG: Error parsing input data {:?}", e);
             ProgramError::InvalidInstructionData
         })
-    }
-
-    /// Packs a [ProgInstruction](enum.ProgInstruction.html) into JSON.
-    pub fn pack(&self) -> Vec<u8> {
-        // TODO: better error handling?
-        self.try_to_vec().unwrap()
     }
 }
 

@@ -15,7 +15,6 @@ mod wcall_handlers;
 pub use solana_program;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
     pubkey::Pubkey,
 };
 
