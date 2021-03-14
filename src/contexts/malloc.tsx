@@ -11,8 +11,10 @@ import {
 import React, { useEffect, useMemo, useContext, useState } from "react";
 import { useConnectionConfig, sendTransaction } from "../contexts/connection";
 import { useWallet, WalletAdapter } from "../contexts/wallet";
-import {useAccountsContext} from "../contexts/accounts";
+import { useAccountsContext } from "../contexts/accounts";
 import { Malloc } from "./malloc-class";
+import { PROGRAM_IDS } from "../utils/ids";
+import { MallocState } from "../models/malloc";
 
 const PROGRAM_STATE_ADDR = new PublicKey(
   require("../config/data_account.json").data_account_address
@@ -21,11 +23,21 @@ const PROGRAM_ID = new PublicKey(
   require("../config/program_id.json").programId
 );
 const REFRESH_INTERVAL = 30_000;
-const MallocContext = React.createContext<Malloc | null>(null);
+const MallocContext = React.createContext<Malloc>(
+  new Malloc(
+    PROGRAM_STATE_ADDR,
+    PROGRAM_ID,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    true
+  )
+);
 
 export const useMalloc = () => {
-  const context = useContext(MallocContext);
-  return context as Malloc;
+  const malloc = useContext(MallocContext);
+  return malloc as Malloc;
 };
 
 export function MallocProvider({ children = null as any }) {
@@ -35,27 +47,33 @@ export function MallocProvider({ children = null as any }) {
   const connection = useMemo(() => new Connection(endpoint, "recent"), [
     endpoint,
   ]);
+  const [mallocState, setMallocState] = useState<MallocState | null>(null);
 
-  const malloc = useMemo(
-    () => {
-      console.log("memo")
-      return new Malloc(PROGRAM_STATE_ADDR, PROGRAM_ID, connection, wallet, accountsContext)
-    },
-    [connection, wallet, accountsContext]
-  );
+  const malloc = useMemo(() => {
+    console.log("memo, changing malloc");
+    return new Malloc(
+      PROGRAM_STATE_ADDR,
+      PROGRAM_ID,
+      connection,
+      wallet,
+      accountsContext,
+      mallocState || undefined
+    );
+  }, [connection, wallet, accountsContext, mallocState]);
 
+  const updateMalloc = async () => {
+    console.log("Setting new malloc state");
+    const newState = await malloc.refresh();
+    if (newState) setMallocState(newState);
+  };
 
   useEffect(() => {
-    const updateMalloc = async () => {
-      console.log("Refreshing malloc")
-      await malloc.refresh();
-    };
-    const interval = window.setInterval(updateMalloc, REFRESH_INTERVAL)
-    updateMalloc()
+    const interval = window.setInterval(updateMalloc, REFRESH_INTERVAL);
+    updateMalloc();
     return () => {
       window.clearInterval(interval);
     };
-  }, [malloc]);
+  }, []);
 
   return (
     <MallocContext.Provider value={malloc}>{children}</MallocContext.Provider>

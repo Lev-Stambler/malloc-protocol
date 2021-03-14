@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Layout, Menu } from "antd";
 import { Link } from "react-router-dom";
 import {
@@ -14,9 +14,18 @@ import { useMalloc } from "../../contexts/malloc";
 const { Header, Content, Footer, Sider } = Layout;
 const { SubMenu } = Menu;
 
-export const AppLayout = (props: any) => {
+export function AppLayout (props: any) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const [basketsName, setBasketsName] = useState<string[]>([])
+
   const malloc = useMalloc();
+  useEffect(() => {
+    console.log("MALLOC", malloc)
+    setBasketsName(Object.keys(malloc.state?.baskets || {}))
+    // console.log(malloc.getBasketNames())
+    // setBasketsName(malloc.getBasketNames())
+  }, [malloc])
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -37,11 +46,11 @@ export const AppLayout = (props: any) => {
             <Link to="/graph/:new">Create Basket</Link>
           </Menu.Item>
           <SubMenu key="baskets" icon={<BarsOutlined />} title="My Baskets">
-            {malloc.getBasketNames().map((name, i) => (
-              <Menu.Item key={`basket-${i}`}>Buy some eth</Menu.Item>
+            {basketsName.map((name, i) => (
+              <><Menu.Item key={`basket-${i}`}>{name}</Menu.Item></>
             ))}
           </SubMenu>
-          <Menu.Item key="2" icon={<InfoCircleOutlined />}>
+          <Menu.Item key="7" icon={<InfoCircleOutlined />}>
             <Link to="/ultralitepaper">Ultralitepaper</Link>
           </Menu.Item>
         </Menu>

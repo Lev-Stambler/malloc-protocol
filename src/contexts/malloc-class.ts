@@ -6,6 +6,7 @@ import {
   AccountMeta,
 } from "@solana/web3.js";
 import { sign } from "crypto";
+import React from "react";
 import {
   createTokenAccount,
   createUninitializedAccount,
@@ -47,7 +48,7 @@ import { WalletAdapter } from "./wallet";
 export class Malloc {
   private progStateAccount: PublicKey;
   private progId: PublicKey;
-  private connection: Connection;
+  private connection: Connection | undefined;
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
   public state: MallocState | undefined;
@@ -58,55 +59,34 @@ export class Malloc {
   constructor(
     progStateAccount: PublicKey,
     progId: PublicKey,
-    connection: Connection,
+    connection: Connection | undefined,
     wallet: WalletAdapter | undefined,
-    accountsContext: any,
+    accountsContext: any | undefined,
+    state?: MallocState,
     dummyState: boolean = false
   ) {
     this.progStateAccount = progStateAccount;
     this.progId = progId;
-    this.connection = connection;
+    if (connection) this.connection = connection;
     this.wallet = wallet;
-    this.tokenAccounts = accountsContext.userAccounts;
-    this.nativeAccounts = accountsContext.nativeAccounts;
+    if (accountsContext) this.tokenAccounts = accountsContext.userAccounts;
+    if (accountsContext) this.nativeAccounts = accountsContext.nativeAccounts;
     this.useDummyState = dummyState;
 
     if (dummyState) {
       this.state = fakeMallocState();
       console.log(this.state);
+    } else if (state) {
+      this.state = state
     }
   }
 
   public setUserPubKeyAlt(pubkey: PublicKey) {
     this.userPubKeyAlt = pubkey;
   }
-
-  // public registerNewSupportedWCall(args: NewSupportedWCallInput) {
-  //   if (!this.wallet && !this.userPubKeyAlt) {
-  //     alert("please connect your wallet first");
-  //     throw "No user"
-  //   }
-  //   return new TransactionInstruction({
-  //     keys: [
-  //       {
-  //         isWritable: true,
-  //         pubkey: this.progStateAccount,
-  //         isSigner: false,
-  //       },
-  //       {
-  //         isWritable: false,
-  //         pubkey: (this.wallet?.publicKey || this.userPubKeyAlt) as PublicKey,
-  //         isSigner: true,
-  //       },
-  //     ],
-  //     programId: this.progId,
-  //     data: Buffer.from(JSON.stringify({ NewSupportedWCallInput: args })),
-  //   });
-  // }
-
+  
   private convertObjToHavePubKey(state: any) {
-    if (!state)
-      return;
+    if (!state) return;
     const keys = Object.keys(state);
     for (let i = 0; i < keys.length; i++) {
       if (
@@ -129,22 +109,27 @@ export class Malloc {
     return state;
   }
 
+  /**
+   *
+   * @returns Malloc's new state or null if failure
+   */
   public async refresh() {
-    if (!this.state) {
+    if (!this.state || !this.connection) {
       this.state = {
         wrapped_calls: {},
         baskets: {},
         supported_wrapped_call_inputs: {},
-        nonce: -1
+        nonce: -1,
       };
+      return null;
     }
 
-    const accountInfo = await this.connection.getAccountInfo(
+    const accountInfo = await (this.connection as Connection).getAccountInfo(
       this.progStateAccount
     );
     if (!accountInfo) {
       console.error(`accountInfo for ${this.progStateAccount} DNE!`);
-      return;
+      return null;
     }
 
     if (this.useDummyState) {
@@ -157,6 +142,7 @@ export class Malloc {
     } else {
       this.state = this.parseAccountState(accountInfo.data);
     }
+    return this.state;
   }
 
   callGraphToTransactionsHelper(
@@ -497,7 +483,8 @@ export class Malloc {
   }
 
   public async getEphemeralAccountRent() {
-    return this.connection.getMinimumBalanceForRentExemption(
+    if (!this.connection) return 0;
+    return (this.connection as Connection).getMinimumBalanceForRentExemption(
       DEFAULT_TEMP_MEM_SPACE
     );
   }
@@ -745,7 +732,7 @@ export class Malloc {
     instructions: TransactionInstruction[],
     signers: Account[]
   ) {
-    if (!this.wallet) {
+    if (!this.wallet || !this.connection) {
       alert("please connect your wallet first");
       return;
     }
