@@ -42,7 +42,7 @@ export const useMalloc = () => {
 
 export function MallocProvider({ children = null as any }) {
   const { endpoint } = useConnectionConfig();
-  const { wallet } = useWallet();
+  const { wallet  } = useWallet();
   const accountsContext = useAccountsContext();
   const connection = useMemo(() => new Connection(endpoint, "recent"), [
     endpoint,
@@ -62,7 +62,6 @@ export function MallocProvider({ children = null as any }) {
   }, [connection, wallet, accountsContext, mallocState]);
 
   const updateMalloc = async () => {
-    console.log("Setting new malloc state");
     const newState = await malloc.refresh();
     if (newState) setMallocState(newState);
   };

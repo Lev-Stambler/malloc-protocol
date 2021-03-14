@@ -21,10 +21,9 @@ export function AppLayout (props: any) {
 
   const malloc = useMalloc();
   useEffect(() => {
-    console.log("MALLOC", malloc)
-    setBasketsName(Object.keys(malloc.state?.baskets || {}))
+    console.log("Getting malloc going")
     // console.log(malloc.getBasketNames())
-    // setBasketsName(malloc.getBasketNames())
+    setBasketsName(malloc.getBasketNames())
   }, [malloc])
 
   return (
@@ -42,10 +41,10 @@ export function AppLayout (props: any) {
           <Menu.Item key="2" icon={<DollarOutlined />}>
             <Link to="/faucet">Faucet</Link>
           </Menu.Item>
-          <Menu.Item key="6" icon={<PlusOutlined />}>
+          <Menu.Item key="3" icon={<PlusOutlined />}>
             <Link to="/graph/:new">Create Basket</Link>
           </Menu.Item>
-          <SubMenu key="baskets" icon={<BarsOutlined />} title="My Baskets">
+          <SubMenu key="4" icon={<BarsOutlined />} title="My Baskets">
             {basketsName.map((name, i) => (
               <><Menu.Item key={`basket-${i}`}>{name}</Menu.Item></>
             ))}

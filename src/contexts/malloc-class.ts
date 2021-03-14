@@ -114,7 +114,7 @@ export class Malloc {
    * @returns Malloc's new state or null if failure
    */
   public async refresh() {
-    if (!this.state || !this.connection) {
+    if (!this.connection) {
       this.state = {
         wrapped_calls: {},
         baskets: {},
