@@ -1,6 +1,3 @@
-//! Solana Utility functions
-
-use crate::instruction::{ProgState, WCall};
 use byteorder::{BigEndian, WriteBytesExt};
 use solana_program::{
     account_info::AccountInfo,
@@ -8,21 +5,17 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
     program::invoke,
-    program::invoke_signed,
-    program_error::ProgramError,
-    program_option::COption,
     pubkey::Pubkey,
 };
-use std::io::Cursor;
 
 /// @res the 0th account is the wcall_exec account, 1st for malloc input, 2nd for spl_prog, the
 /// rest for associated_accounts
-pub fn get_accounts_for_enact_basket_wcall<'a>(
+pub fn get_accounts_for_wcall_invocation<'a>(
     accounts_remaining: &[AccountInfo<'a>],
     start_idx: usize,
     numb_associated_accounts: usize,
-    malloc_input: &'a AccountInfo<'a>,
-    spl_prog: AccountInfo<'a>,
+    malloc_input: &AccountInfo<'a>,
+    spl_prog: &AccountInfo<'a>,
 ) -> (Vec<AccountInfo<'a>>, usize) {
     // TODO: check to ensure associated_accounts_pubkeys is correct
     //
@@ -35,7 +28,7 @@ pub fn get_accounts_for_enact_basket_wcall<'a>(
     (inp_accounts, (numb_associated_accounts + 2))
 }
 
-pub fn enact_wcall(
+pub fn invoke_wcall(
     program_id: &Pubkey,
     inp_accounts: &[AccountInfo],
     amount: u64,

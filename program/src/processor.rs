@@ -1,37 +1,37 @@
 //! Program state processor
 use crate::instruction::{
-    self, Basket, BasketEntry, ProgInstruction, ProgState, WCall, WCallEntry, WCallInputEntry,
+    Basket, BasketEntry, ProgInstruction, ProgState, WCall, WCallEntry, WCallInputEntry,
 };
 use solana_program::{
-    account_info::{next_account_info, Account, AccountInfo},
+    account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program::invoke,
     program_error::ProgramError,
     program_option::COption,
-    program_pack::{IsInitialized, Pack},
+    program_pack::Pack,
     pubkey::Pubkey,
 };
-use std::{borrow::{Borrow, BorrowMut}, str::from_utf8};
 
-const TOKEN_PROG_ID: &'static str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-type EnactBasketResult = std::result::Result<usize, ProgramError>;
-type ProgStateResult = std::result::Result<ProgState, ProgramError>;
+const TOKEN_PROG_ID: &'static [u8; 32] = &[
+    6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237,
+    95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
+];
 
-fn process_register_call<'a, 'b>(
-    sender: &Pubkey,
-    mut prog_state: ProgState,
-    program_info: &'a AccountInfo<'a>,
-    name: String,
+type InvokeBasketResult = std::result::Result<usize, ProgramError>;
+
+fn process_new_call<'a>(
+    prog_state: &mut ProgState,
+    name: &str,
     wcall: WCall,
     associated_accounts_infos: Vec<AccountInfo>,
-) -> ProgStateResult {
-    if let Some(_entry) = prog_state
+) -> ProgramResult {
+    if let Some(_) = prog_state
         .wrapped_calls
         .iter()
         .find(|entry| name == entry.name)
     {
-        msg!("MALLOC LOG: This name already exists as a registered call");
+        msg!("MALLOC LOG: WCall already exists");
         return Err(ProgramError::InvalidInstructionData);
     }
     msg!(
@@ -89,7 +89,7 @@ fn process_register_call<'a, 'b>(
     };
 
     if let None = prog_state
-        .supported_wrapped_call_inputs
+        .supported_inputs
         .iter()
         .find(|entry| &entry.name == call_input)
     {
@@ -97,61 +97,39 @@ fn process_register_call<'a, 'b>(
         return Err(ProgramError::InvalidInstructionData);
     }
     let _ = prog_state.wrapped_calls.push(WCallEntry {
-        name: name.clone(),
+        name: name.to_string(),
         wcall: updated_wcall,
     });
     msg!("MALLOC LOG: registered call '{}'", name);
-    Ok(prog_state)
+    Ok(())
 }
 
-fn process_new_supported_wrapped_call_input<'a>(
-    mut prog_state: ProgState,
-    program_info: &'a AccountInfo<'a>,
+fn process_new_call_input<'a>(
+    prog_state: &mut ProgState,
     input_name: String,
     input_address: Pubkey,
-) -> ProgStateResult {
+) -> ProgramResult {
     if let None = prog_state
-        .supported_wrapped_call_inputs
+        .supported_inputs
         .iter()
         .find(|entry| entry.name == input_name)
     {
-        prog_state
-            .supported_wrapped_call_inputs
-            .push(WCallInputEntry {
-                name: input_name.clone(),
-                input: input_address,
-            });
+        prog_state.supported_inputs.push(WCallInputEntry {
+            name: input_name.clone(),
+            input: input_address,
+        });
     } else {
         msg!("MALLOC LOG: This input has already been registered");
         return Err(ProgramError::InvalidInstructionData);
     }
     msg!("MALLOC LOG: registered new call input '{}'", input_name);
-    Ok(prog_state)
+    Ok(())
 }
 
-fn process_enact_basket<'a>(
-    prog_state: &ProgState,
-    basket_name: String,
-    remaining_accounts: &'a [AccountInfo<'a>],
-    _start_idx: usize,
-    token_program_id: &Pubkey,
-    spl_account: AccountInfo<'a>,
-    caller_account: AccountInfo<'a>,
+fn get_approve_ammount<'a>(
+    malloc_spl_account: &spl_token::state::Account,
     rent_amount: u64,
-) -> EnactBasketResult {
-    msg!("MALLOC LOG: ENACTING BASKET {}", basket_name);
-    let basket = &prog_state.baskets
-        .iter()
-        .find(|entry| basket_name == entry.name)
-        .ok_or(ProgramError::Custom(144))?
-        .basket;
-    let mut start_idx: usize = _start_idx;
-
-    let malloc_input = &remaining_accounts[start_idx];
-    start_idx += 1;
-    let malloc_spl_account: spl_token::state::Account =
-        Pack::unpack(&malloc_input.try_borrow_data()?)?;
-    
+) -> u64 {
     let mut amount_input = malloc_spl_account.amount;
     // Deal with unknown rent sizes for the account
     if let COption::Some(rent_res) = malloc_spl_account.is_native {
@@ -160,6 +138,67 @@ fn process_enact_basket<'a>(
         amount_input += rent_res;
     }
     msg!("Amount input of {}", amount_input);
+    amount_input
+}
+
+fn invoke_basket_approve<'a>(
+    amount: u64,
+    token_program_id: &Pubkey,
+    malloc_input_account: &AccountInfo<'a>,
+    split_account: &AccountInfo<'a>,
+    spl_account: &AccountInfo<'a>,
+    caller_account: &AccountInfo<'a>,
+) -> ProgramResult {
+    // The owner of the source must be present in the signer
+    msg!("Approving {} for WCALL", amount);
+    let approve_insn = spl_token::instruction::approve(
+        token_program_id,
+        malloc_input_account.key,
+        split_account.key,
+        caller_account.key,
+        &[malloc_input_account.key, caller_account.key],
+        amount,
+    )
+    .map_err(|_| ProgramError::Custom(10))?;
+
+    msg!("Calling invoke to approve");
+    let accounts_for_approve = &[
+        spl_account.to_owned(),
+        malloc_input_account.to_owned(),
+        split_account.to_owned(),
+        caller_account.to_owned(),
+    ];
+    invoke(&approve_insn, accounts_for_approve).map_err(|e| {
+        msg!("MALLOC LOG: failed to invoke: {}", e);
+        ProgramError::Custom(11)
+    })?;
+    Ok(())
+}
+
+fn process_invoke_basket<'a>(
+    prog_state: &ProgState,
+    basket_name: String,
+    remaining_accounts: &'a [AccountInfo<'a>],
+    mut start_idx: usize,
+    token_program_id: &Pubkey,
+    spl_account: &AccountInfo<'a>,
+    caller_account: &AccountInfo<'a>,
+    rent_amount: u64,
+) -> InvokeBasketResult {
+    msg!("MALLOC LOG: INVOKING BASKET {}", basket_name);
+    let basket = &prog_state
+        .baskets
+        .iter()
+        .find(|entry| basket_name == entry.name)
+        .ok_or(ProgramError::Custom(144))?
+        .basket;
+
+    let malloc_input_account = &remaining_accounts[start_idx];
+    start_idx += 1;
+    let malloc_spl_account: spl_token::state::Account =
+        Pack::unpack(&malloc_input_account.try_borrow_data()?)?;
+
+    let amount_input = get_approve_ammount(&malloc_spl_account, rent_amount);
     let mut amount_remaining = amount_input;
 
     msg!(
@@ -181,31 +220,18 @@ fn process_enact_basket<'a>(
             return Err(ProgramError::InvalidInstructionData);
         }
         amount_remaining -= amount_approve;
-        let split_account = remaining_accounts[start_idx + 1].to_owned();
-        // The owner of the source must be present in the signer
-        // TODO: invoke
-        msg!("Approving {} for WCALL", amount_approve);
-        let approve_inst = spl_token::instruction::approve(
-            token_program_id,
-            malloc_input.key,
-            split_account.key,
-            caller_account.key,
-            &vec![malloc_input.key, caller_account.key],
+
+        let split_account = &remaining_accounts[start_idx + 1];
+
+        invoke_basket_approve(
             amount_approve,
-        )
-        .map_err(|e| ProgramError::Custom(10))?;
-        msg!("Calling invoke to approve");
-        let accounts_for_approve = &[
-            spl_account.to_owned(),
-            malloc_input.to_owned(),
-            split_account.to_owned(),
-            caller_account.to_owned(),
-        ];
-        invoke(&approve_inst, accounts_for_approve).map_err(|e| {
-            msg!("MALLOC LOG: failed to invoke: {}", e);
-            ProgramError::Custom(11)
-        })?;
-        msg!("Approved is invoked");
+            token_program_id,
+            malloc_input_account,
+            split_account,
+            spl_account,
+            caller_account,
+        )?;
+        msg!("Approve invoked");
 
         let wcall = &prog_state
             .wrapped_calls
@@ -226,15 +252,15 @@ fn process_enact_basket<'a>(
                     remaining_accounts.len()
                 );
                 let (inp_accounts, idx_advance) =
-                    crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
+                    crate::wcall_handlers::get_accounts_for_wcall_invocation(
                         remaining_accounts,
                         start_idx,
                         associated_accounts_pubkeys.len(),
-                        malloc_input,
-                        spl_account.to_owned(),
+                        malloc_input_account,
+                        spl_account,
                     );
                 start_idx += idx_advance;
-                crate::wcall_handlers::enact_wcall(&wcall, &inp_accounts, amount_approve)?;
+                crate::wcall_handlers::invoke_wcall(&wcall, &inp_accounts, amount_approve)?;
             }
             WCall::Chained {
                 wcall,
@@ -249,26 +275,26 @@ fn process_enact_basket<'a>(
                     remaining_accounts.len()
                 );
                 let (mut inp_accounts, idx_advance) =
-                    crate::wcall_handlers::get_accounts_for_enact_basket_wcall(
+                    crate::wcall_handlers::get_accounts_for_wcall_invocation(
                         remaining_accounts,
                         start_idx,
                         associated_accounts_pubkeys.len(),
-                        malloc_input,
-                        spl_account.to_owned(),
+                        malloc_input_account,
+                        spl_account,
                     );
                 start_idx += idx_advance;
                 // Push the output account
                 inp_accounts.push(remaining_accounts[start_idx].clone());
-                crate::wcall_handlers::enact_wcall(&wcall, &inp_accounts, amount_approve)?;
+                crate::wcall_handlers::invoke_wcall(&wcall, &inp_accounts, amount_approve)?;
                 let recurse_ret = {
-                    process_enact_basket(
+                    process_invoke_basket(
                         prog_state,
                         callback_basket.to_owned(),
                         remaining_accounts,
                         start_idx,
                         token_program_id,
-                        spl_account.to_owned(),
-                        caller_account.to_owned(),
+                        spl_account,
+                        caller_account,
                         rent_amount,
                     )
                 };
@@ -280,11 +306,11 @@ fn process_enact_basket<'a>(
         };
     }
     // invoke(&instruction, accounts)?;
-    msg!("MALLOC LOG: enacted basket '{}'", basket_name);
+    msg!("MALLOC LOG: invoked basket '{}'", basket_name);
     Ok(start_idx)
 }
 
-fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgStateResult {
+fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> Result<ProgState, ProgramError> {
     let current_contents = program_info.try_borrow_data()?;
     if let Ok(_) = ProgState::unpack(current_contents.as_ref()) {
         return Err(ProgramError::InvalidInstructionData);
@@ -296,13 +322,12 @@ fn process_init_malloc<'a>(program_info: &'a AccountInfo<'a>) -> ProgStateResult
 }
 
 fn process_create_basket<'a>(
-    mut prog_state: ProgState,
-    program_info: &'a AccountInfo<'a>,
+    prog_state: &mut ProgState,
     name: String,
     calls: Vec<String>,
     splits: Vec<u64>,
     input: String,
-) -> ProgStateResult {
+) -> ProgramResult {
     // TODO: checking
     msg!("Creating malloc basket");
     let new_basket = Basket::new(calls, splits, Pubkey::default(), input);
@@ -311,7 +336,7 @@ fn process_create_basket<'a>(
         basket: new_basket,
     });
     msg!("MALLOC LOG: created new basket '{}'", name);
-    Ok(prog_state)
+    Ok(())
 }
 
 /// Instruction processor
@@ -325,17 +350,6 @@ pub fn process_instruction<'a>(
     accounts: &'a [AccountInfo<'a>],
     input: &[u8],
 ) -> ProgramResult {
-    /* let account_info_iter = &mut accounts.iter();
-    for (i, account) in account_info_iter.enumerate() {
-        msg!(
-            "account {}: pubkey={}, is_signer={}, is_writable={}",
-            i,
-            account.key,
-            account.is_signer,
-            account.is_writable,
-        );
-    }
-    */
     let account_info_iter = &mut accounts.iter();
     let program_info = next_account_info(account_info_iter)?;
 
@@ -343,7 +357,7 @@ pub fn process_instruction<'a>(
     if let ProgInstruction::InitMalloc {} = instruction {
         //msg!("MALLOC LOG: InitMalloc");
         let prog_state = process_init_malloc(program_info)?;
-        return ProgState::pack(&prog_state, &mut program_info.try_borrow_mut_data()?);
+        return prog_state.pack(&mut program_info.try_borrow_mut_data()?);
     }
 
     let mut prog_state = ProgState::unpack(&program_info.try_borrow_data()?.as_ref())?;
@@ -352,63 +366,57 @@ pub fn process_instruction<'a>(
         .next()
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    let new_state = match instruction {
-        ProgInstruction::RegisterCall {
+    match instruction {
+        ProgInstruction::NewCall {
             call_name: name,
             wcall_enum: wcall,
         } => {
-            // TODO: this is an implementation for accessing memory picked up from https://github.com/solana-labs/solana-program-library/tree/master/memo
             // not sure if its right
             let associated_accounts = &accounts[2..];
-            process_register_call(
-                account_info.owner,
-                prog_state,
-                program_info,
-                name,
+            process_new_call(
+                &mut prog_state,
+                &name,
                 wcall,
                 associated_accounts.to_owned(),
-            )?
+            )?;
+            prog_state.pack(&mut program_info.try_borrow_mut_data()?)?;
         }
-        ProgInstruction::EnactBasket {
+        ProgInstruction::InvokeBasket {
             basket_name,
             rent_given,
         } => {
             // from https://explorer.solana.com/address/TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA?cluster=devnet
             let spl_account: &'a AccountInfo<'a> = next_account_info(account_info_iter)?;
-            let spl_token_prog = Pubkey::new(&vec![
-                6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28,
-                180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169,
-            ]);
-            let _ = process_enact_basket(
+            let spl_token_prog = Pubkey::new(TOKEN_PROG_ID);
+            let _ = process_invoke_basket(
                 &mut prog_state,
                 basket_name,
                 &accounts[3..],
                 0,
                 &spl_token_prog,
-                spl_account.to_owned(),
-                account_info.to_owned(),
+                spl_account,
+                account_info,
                 rent_given,
             )?;
-            prog_state
         }
-        ProgInstruction::InitMalloc {} => prog_state,
+        ProgInstruction::InitMalloc {} => {}
         ProgInstruction::CreateBasket {
             name,
             calls,
             splits,
             input,
-        } => process_create_basket(prog_state, program_info, name, calls, splits, input)?,
-        ProgInstruction::NewSupportedWCallInput {
+        } => {
+            process_create_basket(&mut prog_state, name, calls, splits, input)?;
+            prog_state.pack(&mut program_info.try_borrow_mut_data()?)?;
+        }
+        ProgInstruction::NewCallInput {
             input_name,
             input_address,
-        } => process_new_supported_wrapped_call_input(
-            prog_state,
-            program_info,
-            input_name,
-            input_address,
-        )?,
+        } => {
+            process_new_call_input(&mut prog_state, input_name, input_address)?;
+            prog_state.pack(&mut program_info.try_borrow_mut_data()?)?;
+        }
     };
-    ProgState::pack(&new_state, &mut program_info.try_borrow_mut_data()?)?;
     Ok(())
 }
 
@@ -419,69 +427,4 @@ mod tests {
         account_info::IntoAccountInfo, program_error::ProgramError, pubkey::Pubkey,
     };
     use solana_sdk::account::Account;
-
-    // #[test]
-    // fn test_utf8_memo() {
-    //     let program_id = Pubkey::new(&[0; 32]);
-
-    //     let string = b"letters and such";
-    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], string));
-
-    //     let emoji = "🐆".as_bytes();
-    //     let bytes = [0xF0, 0x9F, 0x90, 0x86];
-    //     assert_eq!(emoji, bytes);
-    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], &emoji));
-
-    //     let mut bad_utf8 = bytes;
-    //     bad_utf8[3] = 0xFF; // Invalid UTF-8 byte
-    //     assert_eq!(
-    //         Err(ProgramError::InvalidInstructionData),
-    //         process_instruction(&program_id, &[], &bad_utf8)
-    //     );
-    // }
-
-    // #[test]
-    // fn test_signers() {
-    //     let program_id = Pubkey::new(&[0; 32]);
-    //     let memo = "🐆".as_bytes();
-
-    //     let pubkey0 = Pubkey::new_unique();
-    //     let pubkey1 = Pubkey::new_unique();
-    //     let pubkey2 = Pubkey::new_unique();
-    //     let mut account0 = Account::default();
-    //     let mut account1 = Account::default();
-    //     let mut account2 = Account::default();
-
-    //     let signed_account_infos = vec![
-    //         (&pubkey0, true, &mut account0).into_account_info(),
-    //         (&pubkey1, true, &mut account1).into_account_info(),
-    //         (&pubkey2, true, &mut account2).into_account_info(),
-    //     ];
-    //     assert_eq!(
-    //         Ok(()),
-    //         process_instruction(&program_id, &signed_account_infos, memo)
-    //     );
-
-    //     assert_eq!(Ok(()), process_instruction(&program_id, &[], memo));
-
-    //     let unsigned_account_infos = vec![
-    //         (&pubkey0, false, &mut account0).into_account_info(),
-    //         (&pubkey1, false, &mut account1).into_account_info(),
-    //         (&pubkey2, false, &mut account2).into_account_info(),
-    //     ];
-    //     assert_eq!(
-    //         Err(ProgramError::MissingRequiredSignature),
-    //         process_instruction(&program_id, &unsigned_account_infos, memo)
-    //     );
-
-    //     let partially_signed_account_infos = vec![
-    //         (&pubkey0, true, &mut account0).into_account_info(),
-    //         (&pubkey1, false, &mut account1).into_account_info(),
-    //         (&pubkey2, true, &mut account2).into_account_info(),
-    //     ];
-    //     assert_eq!(
-    //         Err(ProgramError::MissingRequiredSignature),
-    //         process_instruction(&program_id, &partially_signed_account_infos, memo)
-    //     );
-    // }
 }
