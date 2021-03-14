@@ -22,7 +22,6 @@ export function AppLayout (props: any) {
   const malloc = useMalloc();
   useEffect(() => {
     console.log("Getting malloc going")
-    // console.log(malloc.getBasketNames())
     setBasketsName(malloc.getBasketNames())
   }, [malloc])
 
@@ -49,7 +48,7 @@ export function AppLayout (props: any) {
               <><Menu.Item key={`basket-${i}`}>{name}</Menu.Item></>
             ))}
           </SubMenu>
-          <Menu.Item key="7" icon={<InfoCircleOutlined />}>
+          <Menu.Item key="5" icon={<InfoCircleOutlined />}>
             <Link to="/ultralitepaper">Ultralitepaper</Link>
           </Menu.Item>
         </Menu>
