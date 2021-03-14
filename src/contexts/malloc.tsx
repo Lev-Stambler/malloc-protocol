@@ -31,6 +31,7 @@ const MallocContext = React.createContext<Malloc>(
     undefined,
     undefined,
     undefined,
+    undefined,
     true
   )
 );
@@ -47,7 +48,7 @@ export function MallocProvider({ children = null as any }) {
   const connection = useMemo(() => new Connection(endpoint, "recent"), [
     endpoint,
   ]);
-  const [mallocState, setMallocState] = useState<MallocState | null>(null);
+  const [mallocState, setMallocState] = useState<MallocState | undefined>(undefined);
 
   const malloc = useMemo(() => {
     console.log("memo, changing malloc");
@@ -57,13 +58,13 @@ export function MallocProvider({ children = null as any }) {
       connection,
       wallet,
       accountsContext,
+      setMallocState,
       mallocState || undefined
     );
   }, [connection, wallet, accountsContext, mallocState]);
 
   const updateMalloc = async () => {
-    const newState = await malloc.refresh();
-    if (newState) setMallocState(newState);
+    await malloc.refresh();
   };
 
   useEffect(() => {

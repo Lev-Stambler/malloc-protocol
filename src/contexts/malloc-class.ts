@@ -52,6 +52,7 @@ export class Malloc {
   private wallet: WalletAdapter | undefined;
   private userPubKeyAlt: PublicKey | undefined;
   public state: MallocState | undefined;
+  private setUpdateState: React.Dispatch<MallocState | undefined> | undefined;
   private useDummyState: boolean;
   private tokenAccounts: any;
   private nativeAccounts: any;
@@ -62,6 +63,7 @@ export class Malloc {
     connection: Connection | undefined,
     wallet: WalletAdapter | undefined,
     accountsContext: any | undefined,
+    setUpdateState?: React.Dispatch<MallocState| undefined>,
     state?: MallocState,
     dummyState: boolean = false
   ) {
@@ -69,6 +71,7 @@ export class Malloc {
     this.progId = progId;
     if (connection) this.connection = connection;
     this.wallet = wallet;
+    this.setUpdateState = setUpdateState;
     if (accountsContext) this.tokenAccounts = accountsContext.userAccounts;
     if (accountsContext) this.nativeAccounts = accountsContext.nativeAccounts;
     this.useDummyState = dummyState;
@@ -109,10 +112,6 @@ export class Malloc {
     return state;
   }
 
-  /**
-   *
-   * @returns Malloc's new state or null if failure
-   */
   public async refresh() {
     if (!this.connection) {
       this.state = {
@@ -142,7 +141,8 @@ export class Malloc {
     } else {
       this.state = this.parseAccountState(accountInfo.data);
     }
-    return this.state;
+    if (this.setUpdateState)
+      this.setUpdateState(this.state)
   }
 
   callGraphToTransactionsHelper(
