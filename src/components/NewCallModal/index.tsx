@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { Modal, Form, Input, Button, Checkbox, Select } from "antd";
+import { Modal, Form, Input, Button, Checkbox, Select, Space } from "antd";
 import { serializePubkey } from "../../utils/utils";
 import { MinusCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import { useMalloc } from "../../contexts/malloc";
@@ -19,28 +19,40 @@ export function RegisterCallModal(props: RegisterCallModalProps) {
 
   const onFinish = useCallback(
     async (value: any) => {
-      console.log(malloc, value);
+      console.log(value);
       const { name, progId, input, associated_accounts } = value.call;
       const wcallPubkey = new PublicKey(progId);
       const associatedAccountsPubkeys = (associated_accounts || []).map(
-        (key) => new PublicKey(key)
+        (account) => new PublicKey(account.pubkey)
+      );
+      const associatedAccountSigner = (
+        associated_accounts || []
+      ).map((account) =>
+        account.signer?.length === 1 && account.signer[0] === "true" ? 1 : 0
+      );
+      const associatedAccountWriter = (
+        associated_accounts || []
+      ).map((account) =>
+        account.writeable?.length === 1 && account.writeable[0] === "true"
+          ? 1
+          : 0
       );
       const insns: TransactionInstruction[] = [];
-      insns.push(
-        malloc.registerCall({
-          call_name: name,
-          wcall: {
-            Simple: {
-              wcall: wcallPubkey,
-              input: input,
-              associated_accounts: associatedAccountsPubkeys,
-              // TODO: add in
-              associated_account_is_signer: [],
-              associated_account_is_writable: []
-            },
+      const args = {
+        call_name: name,
+        wcall: {
+          Simple: {
+            wcall: wcallPubkey,
+            input: input,
+            associated_accounts: associatedAccountsPubkeys,
+            // TODO: add in
+            associated_account_is_signer: associatedAccountSigner,
+            associated_account_is_writable: associatedAccountWriter,
           },
-        })
-      );
+        },
+      };
+      console.log(args);
+      insns.push(malloc.registerCall(args));
       await malloc.sendMallocTransaction(insns, []);
     },
     [malloc]
@@ -81,75 +93,49 @@ export function RegisterCallModal(props: RegisterCallModalProps) {
           {(fields, { add, remove }, { errors }) => (
             <>
               {fields.map((field, index) => (
-                <Form.Item
-                  // {...(index === 0
-                  //   ? formItemLayout
-                  //   : formItemLayoutWithOutLabel)}
-                  label={index === 0 ? "Associated Accounts" : ""}
-                  required={false}
+                <Space
                   key={field.key}
+                  style={{ display: "flex", marginBottom: 8 }}
+                  align="baseline"
                 >
                   <Form.Item
                     {...field}
-                    name="pubkey"
-                    validateTrigger={["onChange", "onBlur"]}
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Please input the associated account pubkey",
-                      },
-                    ]}
+                    name={[field.name, "pubkey"]}
+                    fieldKey={[field.fieldKey, "pubkey"]}
+                    rules={[{ required: true, message: "Missing pubkey" }]}
                   >
-                    <Input
-                      placeholder="associate account PublicKey"
-                      style={{ width: "100%" }}
-                    />
-                  </Form.Item>
-                  {/* <Form.Item
-                    name="isWriteable"
-                    label="Writeable"
-                    rules={[{ required: true }]}
-                  >
-                    <Select
-                    defaultValue={0}
-                      // onChange={onGenderChange}
-                    >
-                      <Option value={0}>false</Option>
-                      <Option value={1}>true</Option>
-                    </Select>
+                    <Input placeholder="Public Key" />
                   </Form.Item>
                   <Form.Item
-                    name="isSigner"
-                    label="Signer"
-                    rules={[{ required: true }]}
+                    {...field}
+                    name={[field.name, "writeable"]}
+                    fieldKey={[field.fieldKey, "writeable"]}
                   >
-                    <Select
-                    defaultValue={0}
-                      // onChange={onGenderChange}
-                    >
-                      <Option value={0}>false</Option>
-                      <Option value={1}>true</Option>
-                    </Select>
-                  </Form.Item> */}
-                  {fields.length > 1 ? (
-                    <MinusCircleOutlined
-                      className="dynamic-delete-button"
-                      onClick={() => remove(field.name)}
-                    />
-                  ) : null}
-                </Form.Item>
+                    <Checkbox.Group>
+                      <Checkbox value="true">Writeable</Checkbox>
+                    </Checkbox.Group>
+                  </Form.Item>
+                  <Form.Item
+                    {...field}
+                    name={[field.name, "signer"]}
+                    fieldKey={[field.fieldKey, "signer"]}
+                  >
+                    <Checkbox.Group>
+                      <Checkbox value="true">Signer</Checkbox>
+                    </Checkbox.Group>
+                  </Form.Item>
+                  <MinusCircleOutlined onClick={() => remove(field.name)} />
+                </Space>
               ))}
               <Form.Item>
                 <Button
                   type="dashed"
                   onClick={() => add()}
-                  style={{ width: "60%" }}
+                  block
                   icon={<PlusOutlined />}
                 >
-                  Associated Account
+                  Add field
                 </Button>
-                <Form.ErrorList errors={errors} />
               </Form.Item>
             </>
           )}

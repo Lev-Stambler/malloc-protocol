@@ -673,9 +673,11 @@ export class Malloc {
       }
     );
 
+    console.log(wcall)
     const instructionData = InstructionData.createNew(
       RegisterCallInstructionData.createNew(args.call_name, wcall)
     );
+    console.log(instructionData)
     return new TransactionInstruction({
       keys: [
         {

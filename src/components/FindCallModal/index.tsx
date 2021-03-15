@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { Modal, Form, AutoComplete, Button } from 'antd';
-import { RegisterCallModal } from '../RegisterCallModal';
+import { RegisterCallModal } from '../NewCallModal';
 import { useMalloc } from '../../contexts/malloc';
 
 export interface FindCallModalProps {
